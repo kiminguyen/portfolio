@@ -1808,8 +1808,8 @@ a.b:hover .mini img:nth-child(3) { transform: rotate(11deg) translateY(-4px); }
   position: absolute;
   top: 34%;
   right: 4px;
-  width: 17px;
-  height: 17px;
+  width: 26px;
+  height: 26px;
   z-index: 4;
   color: #f0819b;
   opacity: 0;
