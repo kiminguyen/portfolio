@@ -3,6 +3,44 @@
    Bento board of gradient cards with floating UI panels.
    ============================================================= */
 
+/* =============================================================
+   Page-to-page transitions
+   These are four separate documents, so a click normally tears
+   one down and paints the next — that's the white blink between
+   Home and K-Beauty. `navigation: auto` hands the changeover to
+   the browser instead: it snapshots the outgoing page and
+   cross-fades it into the incoming one.
+
+   Pure progressive enhancement. Every page opts in through this
+   one stylesheet, and browsers without cross-document view
+   transitions simply navigate the way they always did. Nothing
+   is layered on in JS, so there's no half-faded overlay to get
+   stuck if a page is slow.
+   ============================================================= */
+@view-transition { navigation: auto; }
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 260ms;
+  /* the literal, not var(--ease): the transition pseudo-elements sit in
+     their own tree and I'd rather not rely on custom properties reaching
+     it */
+  animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* The nav is on every page and lands in the same spot. Naming it takes
+   it out of the whole-page fade and animates it as its own thing, so it
+   holds still while the content underneath changes — the difference
+   between "the site moved" and "the page reloaded". */
+.nav-shell { view-transition-name: nav; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* !important to beat the UA's own animations on these pseudo-elements */
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) { animation: none !important; }
+}
+
 :root {
   /* --- type ------------------------------------------------
      The two faces named on the reference board: Charter for
