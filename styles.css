@@ -2176,12 +2176,23 @@ a.product:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
   justify-content: center;
   padding-bottom: 40px;
   color: var(--muted);
-  font-size: 13px;
-  --webring-size: 15px;
-  --webring-color: currentColor;
-  --webring-accent: var(--hover);
+  /* 15px because that's what --webring-size handed the embed's shadow DOM;
+     the badge is plain markup now, so the size lives here instead and the
+     three --webring-* custom properties are gone with the script. */
+  font-size: 15px;
 }
-.webring a { text-decoration: none; }
+.webring nav { display: flex; align-items: center; gap: 0.5em; }
+.webring a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.2s var(--ease);
+}
+.webring a:hover { color: var(--hover); }
+/* em-based, so the whole badge scales from .webring's font-size alone —
+   these are the proportions embed.js used inside its shadow root */
+.webring .wr-arrow { font-size: 0.9em; font-weight: 700; line-height: 1; }
+.webring .wr-leaf { display: inline-flex; align-items: center; }
+.webring .wr-leaf svg { width: 1.6em; height: 1.6em; fill: currentColor; display: block; }
 
 /* =============================================================
    Scroll reveal
