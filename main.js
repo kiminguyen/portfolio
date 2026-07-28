@@ -632,7 +632,23 @@
       var id = a.getAttribute("href").slice(1);
       if (!id) return;                      /* a bare "#" isn't a jump */
       var target = document.getElementById(id);
-      if (!target) return;
+
+      /* "#top" with nothing carrying that id means the top of the
+         document — that's in the HTML spec, and it's what the back-to-top
+         link rides on. It can't go through scrollIntoView: there is no
+         element to scroll to, and the nav that lives up there is sticky,
+         so it is never out of view to scroll back into. */
+      var toDocTop = !target && id.toLowerCase() === "top";
+      if (!target && !toDocTop) return;
+
+      /* -1 so a thing can take focus without joining the tab order */
+      function land(el) {
+        if (!el) return;
+        if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", "-1");
+        /* preventScroll: the smooth scroll is already under way and
+           focus() would otherwise snap it straight to the end */
+        el.focus({ preventScroll: true });
+      }
 
       a.addEventListener("click", function (e) {
         /* cmd/ctrl/shift-click still belongs to the browser — opening an
@@ -641,13 +657,19 @@
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         e.preventDefault();
 
-        target.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
+        var how = still ? "auto" : "smooth";
 
-        /* -1 so it can take focus without joining the tab order */
-        if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
-        /* preventScroll: the smooth scroll is already under way and
-           focus() would otherwise snap it straight to the end */
-        target.focus({ preventScroll: true });
+        if (toDocTop) {
+          scrollTo({ top: 0, behavior: how });
+          /* nothing up there to hold focus, so hand it to the nav: a
+             keyboard user should carry on from the top of the page, not
+             from the footer they just left */
+          land(document.querySelector(".nav-shell"));
+          return;
+        }
+
+        target.scrollIntoView({ behavior: how, block: "start" });
+        land(target);
       });
     });
   }
