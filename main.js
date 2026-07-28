@@ -371,6 +371,57 @@
     });
     var portraitItem = portrait ? items[items.length - 1] : null;
 
+    /* ------------------------------------------- pop the empties on click
+       The drift loop owns these transforms, so popping one has to park it
+       (s.popped, which the loop skips) and hand its current offset over to
+       CSS as --pop-tx/--pop-ty. Without that the burst would start from the
+       bubble's untransformed origin and the thing would visibly jump before
+       it popped.
+
+       The inline `animation: none` set above has to come off as well, or it
+       would beat the keyframes on the class.
+
+       They come back after a few seconds. A hero that empties out for good
+       is a worse toy than one you can keep playing with, and a visitor who
+       pops all seven shouldn't be left looking at a bare corner. */
+    var spray = bubbleSpawner(30);
+
+    items.forEach(function (s) {
+      if (s.el === portrait) return;       /* the headshot has its own burst */
+
+      s.el.addEventListener("click", function () {
+        if (s.popped) return;
+        s.popped = true;
+
+        /* a little spray where it burst, from the shared bubble layer */
+        var r = s.el.getBoundingClientRect();
+        var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        for (var i = 0; i < 4; i++) {
+          var a = -1.15 + 2.3 * ((i + Math.random()) / 4);
+          var d = 24 + Math.random() * 32;
+          spray(cx + (Math.random() * 10 - 5), cy + (Math.random() * 10 - 5),
+                2.8 + Math.random() * 2, 0.9 + Math.random() * 0.6,
+                Math.sin(a) * d, -Math.cos(a) * d);
+        }
+
+        s.el.style.setProperty("--pop-tx", s.tx.toFixed(2) + "px");
+        s.el.style.setProperty("--pop-ty", s.ty.toFixed(2) + "px");
+        s.el.style.animation = "";           /* let the keyframes through */
+        s.el.classList.add("is-popping");
+      });
+
+      s.el.addEventListener("animationend", function () {
+        if (!s.popped) return;
+        s.el.classList.remove("is-popping");
+        s.el.classList.add("is-gone");
+        s.el.style.animation = "none";       /* hand the drift back to rAF */
+        setTimeout(function () {
+          s.el.classList.remove("is-gone");  /* fades back in, then drifts */
+          s.popped = false;
+        }, 3500 + Math.random() * 2500);
+      });
+    });
+
     var px = -9999, py = -9999, live = false;
     lander.addEventListener("pointermove", function (e) {
       px = e.clientX; py = e.clientY; live = true;
@@ -382,6 +433,9 @@
       t += 0.016;
       for (var i = 0; i < items.length; i++) {
         var s = items[i];
+        /* a popped bubble is CSS's for the moment — writing a transform
+           here every frame would stamp straight over the burst */
+        if (s.popped) continue;
         /* idle drift */
         var dx = Math.sin(t * s.speed + s.phase) * s.ax;
         var dy = Math.cos(t * s.speed * 0.82 + s.phase) * s.ay;
@@ -565,8 +619,11 @@
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     /* the cap counts every element, and each move emits a cluster rather
-       than one bubble, so it's higher than it was */
-    var pop = bubbleSpawner(34);
+       than one bubble. Raised again for the held-down state: that spawns
+       at twice the rate with an extra small bubble each time, and at 34
+       it hit the ceiling and thinned out exactly when it should look
+       densest. */
+    var pop = bubbleSpawner(52);
     var lastX = null, lastY = null;
 
     /* a loose upward wander — no bearing, these just drift off */
@@ -577,7 +634,7 @@
        a bubble — it's just a dot. Every size goes through squeeze(), so
        neither the trim nor the held-down state can push under it. */
     var MIN = 2.8;
-    var HELD = 0.62;
+    var HELD = 0.55;
     var down = false;
 
     function squeeze(px) {
@@ -587,6 +644,22 @@
     addEventListener("pointerdown", function (e) {
       if (e.pointerType && e.pointerType !== "mouse") return;
       down = true;
+
+      /* Spawning is distance-gated, so a press that doesn't travel emits
+         nothing whatsoever — which is why the click state kept reading as
+         "no change": an ordinary click never moves far enough to trigger
+         it, and the finer, denser trail only shows up once you drag.
+
+         So the press gets its own mark. A ring rather than the upward
+         wander the trail uses: it wants to read as something happening at
+         the pointer, not as more soap drifting off it. */
+      for (var i = 0; i < 6; i++) {
+        var a = (i / 6) * Math.PI * 2 + Math.random() * 0.5;
+        var d = 13 + Math.random() * 11;
+        pop(e.clientX, e.clientY,
+            2.8 + Math.random() * 1.5, 0.55 + Math.random() * 0.35,
+            Math.cos(a) * d, Math.sin(a) * d);
+      }
     }, { passive: true });
 
     function release() { down = false; }
@@ -601,20 +674,30 @@
       if (lastX === null) { lastX = e.clientX; lastY = e.clientY; return; }
 
       var dx = e.clientX - lastX, dy = e.clientY - lastY;
-      if (dx * dx + dy * dy < 900) return;      /* < 30px travelled */
+      /* Held down spawns every 15px instead of every 30px. Size alone
+         couldn't carry the distinction: at this scale the press only takes
+         the biggest bubble from about 5px to under 4px, which is a change
+         you can measure but not see. Density is the readable signal —
+         pressing turns the trail into a fine, close-packed mist. */
+      var gate = down ? 225 : 900;
+      if (dx * dx + dy * dy < gate) return;
       lastX = e.clientX; lastY = e.clientY;
 
       /* one bubble reads as a dot following the pointer; a cluster of one
          bigger and two much smaller ones reads as soap. The little ones are
          scattered off the pointer and run shorter, so they thin out first. */
-      pop(e.clientX, e.clientY, squeeze(4 + Math.random() * 5),
+      pop(e.clientX, e.clientY, squeeze(3.2 + Math.random() * 3.8),
           1.5 + Math.random() * 1.1, wanderX(), wanderY());
 
-      var tiny = 1 + (Math.random() < 0.65 ? 1 : 0);
+      /* and more of the small ones while held, so the spray reads as finer
+         rather than merely sparser */
+      var tiny = down
+        ? 2 + (Math.random() < 0.5 ? 1 : 0)
+        : 1 + (Math.random() < 0.65 ? 1 : 0);
       for (var i = 0; i < tiny; i++) {
         pop(e.clientX + (Math.random() * 28 - 14),
             e.clientY + (Math.random() * 24 - 12),
-            squeeze(2.8 + Math.random() * 1.8),
+            squeeze(2.8 + Math.random() * 1.2),
             1.0 + Math.random() * 0.8,
             wanderX(), wanderY());
       }

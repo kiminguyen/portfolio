@@ -153,7 +153,15 @@ a   { color: inherit; text-decoration: none; }
       url("assets/cursor/bubble.png") 1x,
       url("assets/cursor/bubble@2x.png") 2x) 12 12, auto;
   }
-  a, button, summary, [role="button"], label {
+  /* The bubbles are a <span> and a <figure>, so they matched none of the
+     element selectors here and fell back to the plain OS hand from their
+     own `cursor: pointer` further down — clickable, but not looking like
+     anything else clickable on the page.
+
+     They're prefixed with `body` on purpose: those later rules are single
+     classes at (0,1,0) and would otherwise win this on source order. */
+  a, button, summary, [role="button"], label,
+  body .bubble--sm, body .bubble--portrait {
     cursor: url("assets/cursor/bubble-link.png") 15 15, pointer;
     cursor: -webkit-image-set(
       url("assets/cursor/bubble-link.png") 1x,
@@ -849,6 +857,39 @@ h1, h2, h3, h4 {
   100% { transform: translate(0, 0) scale(1); }
 }
 
+/* --- the empties are poppable ---------------------------------------
+   .lander-orbit turns pointer events off for the whole orbit so the
+   bubbles never eat a click meant for the hero; these take them back
+   for themselves only. */
+.bubble--sm {
+  pointer-events: auto;
+  cursor: pointer;
+  transition: opacity 0.9s var(--ease);   /* the fade back in */
+}
+
+/* Two classes plus .js, because `.js .bubble--sm` and the per-bubble
+   `.js .s1` overrides above both match at (0,2,0) — a tie this rule
+   would lose on source order if it weren't more specific.
+
+   --pop-tx/--pop-ty come from main.js and carry whatever drift offset
+   the rAF loop had reached, so the burst begins where the bubble
+   actually is instead of snapping back to its untransformed origin. */
+.js .bubble--sm.is-popping {
+  animation: bubble-burst 0.42s cubic-bezier(0.3, 0, 0.2, 1) forwards;
+}
+@keyframes bubble-burst {
+  0%   { transform: translate(var(--pop-tx, 0), var(--pop-ty, 0)) scale(1);    opacity: 1; }
+  55%  { transform: translate(var(--pop-tx, 0), var(--pop-ty, 0)) scale(1.3);  opacity: 0.8; }
+  100% { transform: translate(var(--pop-tx, 0), var(--pop-ty, 0)) scale(1.55); opacity: 0; }
+}
+.bubble--sm.is-gone { opacity: 0; pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* initBubbles bails before wiring any of this up, so don't offer a
+     cursor that promises something that won't happen */
+  .bubble--sm { pointer-events: none; cursor: default; transition: none; }
+}
+
 .lander-inner {
   position: relative;
   z-index: 2;
@@ -858,7 +899,15 @@ h1, h2, h3, h4 {
   align-items: flex-start;
   gap: 26px;
   padding-bottom: clamp(48px, 8vw, 96px);
+  /* This is a full-width box at z-index 2, so it lies over the right-hand
+     side of the orbit even though nothing is drawn there — and it was
+     swallowing the clicks meant for the bubbles underneath (three of the
+     seven were unhittable). It doesn't need to catch anything itself; the
+     headline and the buttons take their own hits back below, which leaves
+     the empty space either side transparent to the bubbles. */
+  pointer-events: none;
 }
+.lander-inner > * { pointer-events: auto; }
 
 /* smaller than before, and the second clause takes its own line */
 .lander h1 {
