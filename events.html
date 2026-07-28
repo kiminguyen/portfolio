@@ -159,6 +159,30 @@
     <div class="webring">
       <div data-webring="ca" data-member="kimi-nguyen"></div>
       <script src="https://webring.ca/embed.js" defer></script>
+      <!-- The tag above stays exactly as it is: the ring's CI reads the raw
+           HTML and wants to find it there, so it can't become a dynamic
+           loader. This is a retry beside it, not a replacement.
+
+           embed.js is a one-shot IIFE — it renders into a shadow root the
+           moment it runs and never tries again. Under the prerender rules
+           in <head> it can spend that one shot inside a document the
+           visitor hasn't activated yet, and gets no second chance when
+           they do; that's the badge only showing after a manual refresh.
+           So: if this page was prerendered, run it again on activation.
+           embed.js returns early once a shadow root exists, so when the
+           first run did work this does nothing at all. -->
+      <script>
+        (function () {
+          if (!document.prerendering) return;
+          document.addEventListener("prerenderingchange", function () {
+            var el = document.querySelector('div[data-webring="ca"]');
+            if (!el || el.shadowRoot) return;          /* already rendered */
+            var s = document.createElement("script");
+            s.src = "https://webring.ca/embed.js";
+            document.body.appendChild(s);
+          }, { once: true });
+        })();
+      </script>
     </div>
 
   </section>
