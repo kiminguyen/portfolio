@@ -279,7 +279,7 @@ window.SITE = {
   brandGroups: [
     {
       key: "career",
-      label: "Career & Education",
+      label: "Career & Productivity",
       emoji: "📚",
       brands: [
         { name: "Wealthsimple Foundation", logo: "assets/brands/wealthsimple.jpg", url: "https://wealthsimplefoundation.com/" },
