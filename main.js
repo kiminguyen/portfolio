@@ -608,6 +608,50 @@
     addEventListener("resize", sync);
   }
 
+  /* ------------------------------------ in-page jumps, minus the hash
+     About, Collab and the brands tile all point at sections on this same
+     page. Left to the browser those scroll AND stamp #about on the URL,
+     where it then sits in the address bar and rides along in anything
+     the visitor copies afterwards.
+
+     The href stays in the markup on purpose: with JS off the links still
+     jump, and assistive tech still announces them as in-page links. This
+     only takes over the scrolling and skips the history entry.
+
+     Focus is moved by hand because preventDefault also cancels the focus
+     move the browser would have done — without it a keyboard user
+     carries on tabbing from the top of the document rather than from the
+     section they just jumped to. */
+  function initQuietAnchors() {
+    /* let CSS decide the manner of the scroll: html has scroll-behavior
+       smooth, and the reduced-motion block turns it back to auto. Asking
+       for "smooth" here would override that and animate anyway. */
+    var still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    document.querySelectorAll('a[href^="#"]').forEach(function (a) {
+      var id = a.getAttribute("href").slice(1);
+      if (!id) return;                      /* a bare "#" isn't a jump */
+      var target = document.getElementById(id);
+      if (!target) return;
+
+      a.addEventListener("click", function (e) {
+        /* cmd/ctrl/shift-click still belongs to the browser — opening an
+           in-page link in a new tab should land on the section, and that
+           needs the hash left on */
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+
+        target.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
+
+        /* -1 so it can take focus without joining the tab order */
+        if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
+        /* preventScroll: the smooth scroll is already under way and
+           focus() would otherwise snap it straight to the end */
+        target.focus({ preventScroll: true });
+      });
+    });
+  }
+
   /* --------------------------------------------- scroll reveal */
   function initReveal() {
     var items = document.querySelectorAll(".reveal");
@@ -644,6 +688,7 @@
   initBubbles();
   initCursorBubbles();
   initPortraitBurst();
+  initQuietAnchors();
   fillCounts();
   initReveal();
 
