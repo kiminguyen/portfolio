@@ -381,8 +381,24 @@
                sight, so hand it an untouched host instead */
             if (el.shadowRoot) el.replaceWith(el.cloneNode(false));
             var s = document.createElement("script");
-            s.src = SRC;
+            /* The query string is the whole point. Measured in the browser
+               this actually fails in: the plain URL loads — resource timing
+               shows it completing in well under a second — and still leaves
+               no shadow root, twice over, because a retry on the same URL
+               just re-reads the same cached copy. The identical file with a
+               unique query renders on the spot. So every retry gets its own
+               URL rather than whatever is already held for this one. */
+            s.src = SRC + "?r=" + tries + "-" + Date.now();
+            /* a load that succeeds can still render nothing, so come back
+               and look rather than trusting onload */
+            s.onerror = schedule;
             document.body.appendChild(s);
+            schedule();
+          }
+
+          function schedule() {
+            if (tries >= 3) return;
+            setTimeout(ensure, 1200 * tries);   /* 1.2s, then 2.4s */
           }
 
           document.addEventListener("prerenderingchange", ensure, { once: true });
