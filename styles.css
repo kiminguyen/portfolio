@@ -706,6 +706,14 @@ h1, h2, h3, h4 {
   margin: 0;
   padding: 7px;
   overflow: hidden;
+  /* .lander-orbit turns pointer events off for the whole orbit so the
+     empty bubbles never eat a click meant for the hero. The portrait
+     takes them back for its own circle — border-radius clips hit
+     testing, so the square corners still pass through. main.js pops a
+     burst of bubbles out of wherever you press. */
+  pointer-events: auto;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 .bubble--portrait img {
   width: 100%;
@@ -713,6 +721,16 @@ h1, h2, h3, h4 {
   border-radius: 50%;
   object-fit: cover;
   object-position: 50% 22%;
+  transition: transform 0.18s var(--ease);
+}
+/* the press reads on the photo, not the figure: the figure's transform is
+   driven by the rAF drift loop and anything set here would be overwritten
+   on the next frame */
+.bubble--portrait.is-pressed img { transform: scale(0.965); }
+@media (prefers-reduced-motion: reduce) {
+  .bubble--portrait { cursor: default; }
+  .bubble--portrait img { transition: none; }
+  .bubble--portrait.is-pressed img { transform: none; }
 }
 /* the headshot floats too, on a longer, quieter loop than the empties —
    and translate only, no scale: a breathing 330px portrait reads as a
@@ -796,7 +814,7 @@ h1, h2, h3, h4 {
 .lander h1 {
   font-family: var(--font-ui);
   font-weight: 400;
-  font-size: clamp(27px, 3.5vw, 45px);
+  font-size: clamp(30px, 3.9vw, 50px);
   line-height: 1.08;
   letter-spacing: -0.024em;
   max-width: 31ch;   /* keeps "Content that stops the scroll." on one line */

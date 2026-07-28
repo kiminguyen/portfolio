@@ -417,38 +417,39 @@
     moveTo(home, false);
   }
 
-  /* ------------------------------------ soap bubbles off the cursor
-     Tiny bubbles that spawn as the pointer moves and float away. The
-     animation is CSS, not rAF: each bubble cleans itself up on
+  /* ------------------------------------------ the soap-bubble layer
+     One fixed layer holds every bubble on the page; the cursor trail and
+     the burst off the headshot both draw into it. Each caller gets its
+     own spawner with its own cap, so a trail sitting at its limit can't
+     swallow the bubbles a click is owed.
+
+     The animation is CSS, not rAF: each bubble cleans itself up on
      animationend, so a busy main thread can't leave them stuck on the
-     page. Spawning is distance-gated rather than time-gated, so a slow
-     drag makes a trail and a still cursor makes nothing. */
-  function initCursorBubbles() {
-    if (!matchMedia("(hover: hover) and (pointer: fine)").matches) return;
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+     page. Travel comes in as --dx/--rise rather than being rolled here,
+     because the trail wants a loose upward wander and the burst wants a
+     deliberate bearing. */
+  var bubbleLayer = null;
+  function bubbleSpawner(max) {
+    if (!bubbleLayer) {
+      bubbleLayer = document.createElement("div");
+      bubbleLayer.className = "bubble-trail";
+      bubbleLayer.setAttribute("aria-hidden", "true");
+      document.body.appendChild(bubbleLayer);
+    }
+    var layer = bubbleLayer, live = 0;
 
-    var layer = document.createElement("div");
-    layer.className = "bubble-trail";
-    layer.setAttribute("aria-hidden", "true");
-    document.body.appendChild(layer);
-
-    var lastX = null, lastY = null, live = 0;
-    /* the cap counts every element, and each move now emits a cluster
-       rather than one bubble, so it's higher than it was */
-    var MAX = 34;
-
-    function pop(x, y, size, secs) {
-      if (live >= MAX) return;
+    return function (x, y, size, secs, dx, rise) {
+      if (live >= max) return;
       var b = document.createElement("i");
-      /* centred on the pointer by hand. A -50% margin can't do this: a
+      /* centred on the point by hand. A -50% margin can't do this: a
          percentage margin resolves against the containing block's width,
          not the element's own size. */
       b.style.cssText =
         "left:" + (x - size / 2).toFixed(1) + "px;" +
         "top:" + (y - size / 2).toFixed(1) + "px;" +
         "width:" + size.toFixed(1) + "px;height:" + size.toFixed(1) + "px;" +
-        "--dx:" + (Math.random() * 34 - 17).toFixed(1) + "px;" +
-        "--rise:" + (-38 - Math.random() * 34).toFixed(1) + "px;" +
+        "--dx:" + dx.toFixed(1) + "px;" +
+        "--rise:" + rise.toFixed(1) + "px;" +
         "animation-duration:" + secs.toFixed(2) + "s";
       live++;
 
@@ -466,7 +467,25 @@
       setTimeout(reap, secs * 1000 + 400);
 
       layer.appendChild(b);
-    }
+    };
+  }
+
+  /* ------------------------------------ soap bubbles off the cursor
+     Tiny bubbles that spawn as the pointer moves and float away.
+     Spawning is distance-gated rather than time-gated, so a slow drag
+     makes a trail and a still cursor makes nothing. */
+  function initCursorBubbles() {
+    if (!matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    /* the cap counts every element, and each move emits a cluster rather
+       than one bubble, so it's higher than it was */
+    var pop = bubbleSpawner(34);
+    var lastX = null, lastY = null;
+
+    /* a loose upward wander — no bearing, these just drift off */
+    function wanderX() { return Math.random() * 34 - 17; }
+    function wanderY() { return -38 - Math.random() * 34; }
 
     addEventListener("pointermove", function (e) {
       if (e.pointerType && e.pointerType !== "mouse") return;
@@ -481,14 +500,74 @@
          scattered off the pointer and run shorter, so they thin out first.
          The small range bottoms out at 2.8px rather than lower — below that
          the rim and the fill have no room and it stops reading as a bubble. */
-      pop(e.clientX, e.clientY, 5 + Math.random() * 7, 1.5 + Math.random() * 1.1);
+      pop(e.clientX, e.clientY, 5 + Math.random() * 7, 1.5 + Math.random() * 1.1,
+          wanderX(), wanderY());
 
       var tiny = 1 + (Math.random() < 0.65 ? 1 : 0);
       for (var i = 0; i < tiny; i++) {
         pop(e.clientX + (Math.random() * 28 - 14),
             e.clientY + (Math.random() * 24 - 12),
             2.8 + Math.random() * 2.8,
-            1.0 + Math.random() * 0.8);
+            1.0 + Math.random() * 0.8,
+            wanderX(), wanderY());
+      }
+    }, { passive: true });
+  }
+
+  /* --------------------------------- a burst of bubbles off the headshot
+     Press the portrait and bubbles rise out of the spot you pressed, once
+     per press. The listener is on the figure because .lander-orbit is
+     pointer-events:none — the figure takes them back for its own circle,
+     so the empty bubbles around it still never eat a click.
+
+     pointerdown rather than click, so it fires under a finger as well as
+     a mouse and lands the moment you press instead of on release. It is
+     passive and never calls preventDefault, so a drag that happens to
+     start on the photo still scrolls the page. */
+  function initPortraitBurst() {
+    var portrait = document.querySelector(".lander-orbit .bubble--portrait");
+    if (!portrait) return;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    /* its own budget, kept clear of the trail's — a click should always
+       produce a full burst even mid-sweep across the hero */
+    var pop = bubbleSpawner(72);
+    var pressTimer = null;
+
+    portrait.addEventListener("pointerdown", function (e) {
+      /* the photo dips under the press, so a click that lands while an
+         earlier burst is still rising doesn't feel unacknowledged. It's on
+         the img: the figure's own transform belongs to the rAF drift loop
+         in initBubbles, and setting it here would fight that. */
+      clearTimeout(pressTimer);
+      portrait.classList.add("is-pressed");
+      pressTimer = setTimeout(function () {
+        portrait.classList.remove("is-pressed");
+      }, 200);
+
+      var n = 8 + Math.round(Math.random() * 4);          /* 8..12 */
+      for (var i = 0; i < n; i++) {
+        /* bearings fan across a cone centred on straight up, not a full
+           circle — these are soap bubbles, and ones heading downward read
+           as debris. Each gets its own slice of the cone plus jitter,
+           because pure randomness clumps, and a clump reads as one fat
+           bubble rather than a burst. */
+        var a = (-1.15 + 2.3 * ((i + Math.random()) / n));
+        var dist = 70 + Math.random() * 90;
+
+        /* a few big ones among many small, matching the trail's mix. The
+           big ones run longer, so they're still climbing once the fine
+           spray has gone. */
+        var big = Math.random() < 0.3;
+        var size = big ? 8 + Math.random() * 6 : 3.2 + Math.random() * 4;
+        var secs = big ? 1.6 + Math.random() * 0.7 : 1.1 + Math.random() * 0.7;
+
+        /* scattered off the press point so they don't all leave from the
+           same pixel, which reads as a fountain rather than a burst */
+        pop(e.clientX + (Math.random() * 22 - 11),
+            e.clientY + (Math.random() * 18 - 9),
+            size, secs,
+            Math.sin(a) * dist, -Math.cos(a) * dist);
       }
     }, { passive: true });
   }
@@ -564,6 +643,7 @@
   initNavPill();
   initBubbles();
   initCursorBubbles();
+  initPortraitBurst();
   fillCounts();
   initReveal();
 
