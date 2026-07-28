@@ -161,26 +161,51 @@
       <script src="https://webring.ca/embed.js" defer></script>
       <!-- The tag above stays exactly as it is: the ring's CI reads the raw
            HTML and wants to find it there, so it can't become a dynamic
-           loader. This is a retry beside it, not a replacement.
+           loader. This is a safety net beside it, not a replacement.
 
            embed.js is a one-shot IIFE — it renders into a shadow root the
-           moment it runs and never tries again. Under the prerender rules
-           in <head> it can spend that one shot inside a document the
-           visitor hasn't activated yet, and gets no second chance when
-           they do; that's the badge only showing after a manual refresh.
-           So: if this page was prerendered, run it again on activation.
-           embed.js returns early once a shadow root exists, so when the
-           first run did work this does nothing at all. -->
+           moment it runs and never tries again. Prerendering and
+           cross-document view transitions both mean a nav click shows a
+           document that was built earlier, so that single run can happen
+           somewhere the badge never ends up visible, which is why it only
+           appeared after a manual refresh.
+
+           So rather than trust any one theory about which step drops it,
+           this checks for the rendered <nav> itself and rebuilds if it
+           isn't there, on every route by which the page becomes visible:
+           prerender activation, bfcache restore, and visibility. A shadow
+           root that exists but is empty is the awkward case — embed.js
+           returns early when it sees one — so the host is swapped for a
+           clean clone first (cloneNode drops the shadow root). Capped at
+           three attempts so a failing network can't loop. -->
       <script>
         (function () {
-          if (!document.prerendering) return;
-          document.addEventListener("prerenderingchange", function () {
+          var SRC = "https://webring.ca/embed.js";
+          var tries = 0;
+
+          function rendered() {
             var el = document.querySelector('div[data-webring="ca"]');
-            if (!el || el.shadowRoot) return;          /* already rendered */
+            return !!(el && el.shadowRoot && el.shadowRoot.querySelector("nav"));
+          }
+
+          function ensure() {
+            if (rendered() || tries >= 3) return;
+            var el = document.querySelector('div[data-webring="ca"]');
+            if (!el) return;                  /* nothing to render into */
+            tries++;
+            /* a shadow root with nothing in it would make embed.js bail on
+               sight, so hand it an untouched host instead */
+            if (el.shadowRoot) el.replaceWith(el.cloneNode(false));
             var s = document.createElement("script");
-            s.src = "https://webring.ca/embed.js";
+            s.src = SRC;
             document.body.appendChild(s);
-          }, { once: true });
+          }
+
+          document.addEventListener("prerenderingchange", ensure, { once: true });
+          addEventListener("pageshow", ensure);
+          document.addEventListener("visibilitychange", function () {
+            if (document.visibilityState === "visible") ensure();
+          });
         })();
       </script>
     </div>
