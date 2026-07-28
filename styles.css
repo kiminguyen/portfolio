@@ -1,0 +1,2061 @@
+/* =============================================================
+   Kimi Nguyen — portfolio
+   Bento board of gradient cards with floating UI panels.
+   ============================================================= */
+
+:root {
+  /* --- type ------------------------------------------------
+     The two faces named on the reference board: Charter for
+     display, SF Pro for interface. Both ship with macOS/iOS, so
+     there are no webfonts to download. Charter falls back to
+     Georgia on Windows/Android — same transitional-serif feel,
+     slightly wider. */
+  --font-display: Charter, "Charis SIL", XCharter, "Bitstream Charter",
+                  Georgia, "Times New Roman", serif;
+  --font-ui:      -apple-system, BlinkMacSystemFont, "SF Pro Text",
+                  "SF Pro Display", "Helvetica Neue", "Segoe UI",
+                  system-ui, sans-serif;
+
+  /* --- ink ------------------------------------------------- */
+  --ink:        #23252b;
+  --ink-soft:   #4a4f58;
+  --muted:      #6f747e;   /* 4.7:1 on white — the small mono labels need it */
+  --line:       #e6e7eb;
+
+  /* --- surfaces -------------------------------------------- */
+  --paper:      #ffffff;
+  --surface:    #f1f1f4;   /* the flat grey bento cards */
+  --page:       #fbfbfc;
+
+  /* --- accent ----------------------------------------------
+     `--accent` is the peach. It's light (L 0.538), which means it
+     can be a surface but cannot BE text and cannot carry white
+     text — white on it is 1.79:1. So anything that has to read as
+     type, or has to sit under white type, uses `--accent-deep`:
+     the same hue (3.5deg) taken down to L 0.130, which clears
+     5.83:1 in both directions. */
+  --accent:      #f2b2ae;
+  --accent-deep: #c1291f;
+  --accent-ink:  #a7231b;
+
+  /* hover colour for text and links — the teal from the Contact pill,
+     not the peach. 6.8:1 on white. */
+  --hover:       #3f6068;
+  --pink:        #ff5c8a;
+
+  /* --- shape ------------------------------------------------ */
+  --r-sm: 10px;
+  --r-md: 16px;
+  --r-lg: 22px;
+  --r-xl: 30px;
+
+  /* --- depth ------------------------------------------------ */
+  --shadow-xs: 0 1px 2px rgba(35, 37, 43, 0.05);
+  --shadow-sm: 0 1px 2px rgba(35, 37, 43, 0.04), 0 4px 12px rgba(35, 37, 43, 0.05);
+  --shadow-md: 0 2px 4px rgba(35, 37, 43, 0.04), 0 12px 32px rgba(35, 37, 43, 0.09);
+  --shadow-lg: 0 24px 70px -24px rgba(52, 46, 60, 0.32);
+  --shadow-panel: 0 1px 1px rgba(35, 37, 43, 0.04), 0 8px 24px -6px rgba(35, 37, 43, 0.16);
+
+  --wrap: 1180px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* height the sticky nav occupies. The lander pulls itself up by exactly
+     this much so the photo starts at the very top of the page and the bar
+     sits over it. It has to track the real nav height per breakpoint — at
+     a fixed 86px the two-row mobile nav stuck out above the photo and put
+     white text on white. */
+  --nav-h: 80px;
+}
+
+/* ---------- reset ------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--page);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+img { max-width: 100%; display: block; }
+a   { color: inherit; text-decoration: none; }
+
+/* --- the bubble cursor ---------------------------------------
+   A soap bubble, drawn twice over: a teal rim so it reads on the pale
+   pages, a white rim inside it so it still reads on the dark lander
+   photo. Two glints sell the sphere. Interactive things get a bigger
+   one with a halo, so the pointer affordance survives losing the arrow.
+   Scoped to real pointers — a touch device has no cursor to restyle. */
+@media (hover: hover) and (pointer: fine) {
+  /* PNG, not SVG. Safari does not load SVG cursors at all — it silently
+     falls back to the keyword, which is why this looked like nothing had
+     changed. PNG is the one format every browser accepts here.
+     image-set serves the @2x file to retina; the plain url() after it is
+     the fallback for anything that doesn't understand image-set, so both
+     declarations have to stay. */
+  body {
+    cursor: url("assets/cursor/bubble.png") 12 12, auto;
+    cursor: -webkit-image-set(
+      url("assets/cursor/bubble.png") 1x,
+      url("assets/cursor/bubble@2x.png") 2x) 12 12, auto;
+    cursor: image-set(
+      url("assets/cursor/bubble.png") 1x,
+      url("assets/cursor/bubble@2x.png") 2x) 12 12, auto;
+  }
+  a, button, summary, [role="button"], label {
+    cursor: url("assets/cursor/bubble-link.png") 15 15, pointer;
+    cursor: -webkit-image-set(
+      url("assets/cursor/bubble-link.png") 1x,
+      url("assets/cursor/bubble-link@2x.png") 2x) 15 15, pointer;
+    cursor: image-set(
+      url("assets/cursor/bubble-link.png") 1x,
+      url("assets/cursor/bubble-link@2x.png") 2x) 15 15, pointer;
+  }
+  input, textarea, select { cursor: text; }
+}
+
+/* --- tiny bubbles trailing the cursor -------------------------
+   `main.js` drops an <i> at the pointer as it moves; each one floats,
+   drifts and pops on its own CSS animation, then removes itself on
+   animationend. Fixed-position layer so it ignores scroll, and it never
+   takes a pointer event. */
+.bubble-trail {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  overflow: hidden;
+}
+.bubble-trail i {
+  position: absolute;
+  /* No percentage margin to centre these on the pointer. A % margin
+     resolves against the CONTAINING BLOCK's width — here the whole
+     viewport — so -50% was -632px and every bubble flew off-screen.
+     main.js subtracts half the size from left/top instead. */
+  border-radius: 50%;
+  background:
+    radial-gradient(58% 52% at 32% 26%,
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(255, 255, 255, 0.3) 44%,
+      rgba(255, 255, 255, 0) 70%),
+    radial-gradient(120% 120% at 72% 80%,
+      rgba(180, 228, 240, 0.55) 0%,
+      rgba(255, 255, 255, 0.06) 62%);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow:
+    0 0 5px -1px rgba(120, 180, 195, 0.55),
+    inset 0 0 3px rgba(255, 255, 255, 0.85);
+  will-change: transform, opacity;
+  animation-name: bubble-float;
+  animation-timing-function: cubic-bezier(0.22, 0.68, 0.3, 1);
+  animation-fill-mode: forwards;
+}
+@keyframes bubble-float {
+  /* opens at 0.6, not 0.4 — the smallest bubbles are under 3px, and a
+     0.4 start left them sub-pixel for the first stretch of the run */
+  0%   { transform: translate(0, 0) scale(0.6);  opacity: 0; }
+  14%  { opacity: 0.95; }
+  70%  { opacity: 0.75; }
+  /* a last stretch just before it goes, so it reads as popping */
+  100% { transform: translate(var(--dx), var(--rise)) scale(1.25); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble-trail { display: none; }
+}
+
+/* headings are Charter — a serif carries the display weight here, so
+   they sit at 600 rather than 800 */
+h1, h2, h3, h4 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.018em;
+  line-height: 1.12;
+}
+
+:focus-visible {
+  outline: 2px solid var(--hover);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.serif { font-family: var(--font-display); }
+
+/* Deliberately quiet, and close to neutral. The cards are translucent,
+   so anything busy back here bleeds up through every one of them and
+   each tile ends up wearing four colours instead of its own. The glass
+   read comes from the blur, the white rim and the inset highlight — not
+   from a rainbow behind. This just stops the white going flat. */
+.wash {
+  position: fixed;
+  inset: -20vmax;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.5;
+  filter: blur(90px);
+  background:
+    radial-gradient(34vmax 34vmax at 12%  8%, #ffe7d6 0%, transparent 66%),
+    radial-gradient(30vmax 30vmax at 86% 30%, #f0e6fb 0%, transparent 66%),
+    radial-gradient(32vmax 32vmax at 55% 92%, #ffeef3 0%, transparent 66%);
+}
+
+/* =============================================================
+   Shared pieces
+   ============================================================= */
+.wrap {
+  width: 100%;
+  max-width: var(--wrap);
+  margin-inline: auto;
+  padding-inline: 22px;
+}
+
+.eyebrow {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;   /* SF Pro reads thin at this size uppercase */
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* --muted is tuned for white and only manages 2.1–3.7:1 on the
+   gradient fills, so small labels sitting on a card step darker */
+.b .eyebrow,
+.b .cap,
+.page-head .eyebrow { color: var(--ink-soft); }
+
+.section { padding-block: 68px; }
+.section-head { margin-bottom: 26px; }
+.section-head h2 { font-size: clamp(26px, 3.6vw, 34px); margin-top: 8px; }
+.section-head p {
+  margin: 10px 0 0;
+  max-width: 82ch;   /* wide enough for the brands line to stay on one row */
+  color: var(--ink-soft);
+  font-weight: 300;
+}
+
+/* Pill tag, off the reference board. The layered shadow plus a near-white
+   fill is what makes it read as sitting *above* the card rather than
+   being printed on it. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  box-shadow:
+    0 1px 1px rgba(35, 37, 43, 0.05),
+    0 5px 12px -4px rgba(52, 46, 60, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.chip.is-beauty .dot { background: var(--pink); }
+.chip.is-blue   .dot { background: #4f8ff0; }
+
+/* hashtag pill — same shape, no dot, the # picks up the accent */
+.chip--tag {
+  gap: 0;
+  padding: 5px 13px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.chip--tag i {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--accent-ink);   /* --accent-deep landed at 4.47:1 here */
+  margin-right: 1px;
+}
+.chip--tag.is-beauty i { color: #b02550; }
+
+/* buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  transition: transform 0.25s var(--ease), background 0.25s var(--ease);
+}
+.btn-primary {
+  background: var(--accent-deep);
+  color: #fff;
+  box-shadow: 0 10px 24px -10px rgba(193, 41, 31, 0.9);
+}
+.btn-primary:hover { background: var(--accent-ink); transform: translateY(-2px); }
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: var(--line);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+.btn-ghost:hover { background: #fff; transform: translateY(-2px); }
+
+/* =============================================================
+   Gradient fills — the soft washes inside the bento cards
+   ============================================================= */
+/* No gradients on tiles. A card either carries one of the art photos or
+   it's plain grey — same as the grey cards on the reference bento board.
+   `--surface` is that grey; `--surface-lite` is the lighter one used for
+   the big "Hi, I'm Kimi" card. Both stay translucent so the glass blur
+   still does its work. */
+.surface      { background: rgba(241, 241, 244, 0.72); }
+.surface-lite { background: rgba(247, 247, 249, 0.78); }
+
+/* art-yellow measured at 0.00 required scrim on the full-width tile —
+   light enough to sit under body copy with no overlay at all. */
+.art-yellow {
+  background-image:
+    url("assets/photos/art-yellow.jpg"),
+    linear-gradient(rgba(241, 241, 244, 0.72), rgba(241, 241, 244, 0.72));
+  background-size: cover, cover;
+  background-position: 50% 35%, center;
+}
+
+/* =============================================================
+   Photo-backed tiles
+   Each stacks three layers: a scrim on top, the photograph, then a CSS
+   gradient underneath. That bottom layer means a missing image file
+   degrades to a coloured tint instead of a blank tile.
+
+   Scrim values are set so text passes contrast over ANY photograph —
+   I can't inspect the file before it's dropped in, so worst case is
+   treated as a pure black pixel. If a crop turns out light these can be
+   pulled back; the numbers to beat are noted per tile.
+   ============================================================= */
+
+/* hero — the gradient flowers.
+   Measured against the real file: with cover on this 561x434 tile at
+   position 54% 30%, the darkest pixel under the copy is rgb(141,106,79),
+   L=0.165 — which needs a 0.56 scrim for 4.5:1. 0.62 is that plus
+   margin, down from the 0.90 I had to use before the file existed. Copy
+   ends at 53.6% and the panel starts at 57.2%, so it opens up after 56%
+   and the flowers read properly on the right. */
+.art-hero {
+  background-image:
+    linear-gradient(96deg,
+      rgba(255, 255, 255, 0.66) 0%,
+      rgba(255, 255, 255, 0.63) 42%,
+      rgba(255, 255, 255, 0.62) 56%,
+      rgba(255, 255, 255, 0.16) 74%,
+      rgba(255, 255, 255, 0.02) 100%),
+    url("assets/photos/art-flowers.jpg"),
+    radial-gradient(135% 115% at 12% 8%,
+      rgba(255, 201, 168, 0.92) 0%,
+      rgba(255, 224, 214, 0.62) 46%,
+      rgba(252, 240, 245, 0.50) 100%);
+  background-size: cover, cover, cover;
+  background-position: center, 54% 30%, center;
+}
+
+/* 4M+ — text sits at both the top and bottom of this small tile, so
+   there's no clear band to open up; the scrim has to hold everywhere.
+   Positioned at the top of the frame so the dark green hill never
+   enters the crop — that leaves the deep blue sky as the darkest thing
+   under the copy, rgb(0,74,122) at L=0.063, needing 0.67. 0.72 is that
+   plus margin (was 0.80). */
+.art-sky {
+  background-image:
+    linear-gradient(150deg,
+      rgba(255, 255, 255, 0.75) 0%,
+      rgba(255, 255, 255, 0.73) 55%,
+      rgba(255, 255, 255, 0.72) 100%),
+    url("assets/photos/art-sky.jpg"),
+    radial-gradient(135% 115% at 12% 8%,
+      rgba(168, 211, 247, 0.92) 0%,
+      rgba(206, 230, 250, 0.62) 46%,
+      rgba(238, 247, 255, 0.50) 100%);
+  background-size: cover, cover, cover;
+  background-position: center, 50% 0%, center;
+}
+
+/* LinkedIn — measured at 0.00 required scrim on this tile at y=90%,
+   so the photo carries dark text with no overlay at all. */
+/* single-flower artwork. It's saturated, so it carries a 0.44 white veil
+   — measured 6.0:1 for --ink at 0.40, and 0.44 leaves margin. */
+/* brands card. The tulip is light enough that --ink clears 4.5:1 at a 0.04
+   veil — 0.30 is chosen for the soft look and the margin, not out of
+   necessity, and lands at 6.71:1 on the darkest pixel (the olive stem). */
+.art-petal {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.3)),
+    url("assets/photos/art-pink-tulip.jpg"),
+    linear-gradient(rgba(241, 241, 244, 0.72), rgba(241, 241, 244, 0.72));
+  background-size: cover, cover, cover;
+  background-position: center, center, center;
+}
+
+.art-flower {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0.44)),
+    url("assets/photos/art-small-flower.jpg"),
+    linear-gradient(rgba(241, 241, 244, 0.72), rgba(241, 241, 244, 0.72));
+  background-size: cover, cover, cover;
+  background-position: center, 50% 30%, center;
+}
+
+/* =============================================================
+   Navigation
+   ============================================================= */
+.nav-shell {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  padding: 16px 22px;
+}
+
+/* Three columns so the bar is centred regardless of how wide the mark or
+   the actions are. Logo and Contact sit OUTSIDE the bar. */
+.nav-row {
+  max-width: var(--wrap);
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+}
+.nav-actions { justify-self: end; display: flex; align-items: center; gap: 4px; }
+
+/* the short centred bar — a whisper of frost, not a slab */
+/* Light glass bar — Kimi's call, made knowing the trade-off. Measured: the
+   blurred backdrop behind it reaches rgb(100,141,150) at its lightest, and a
+   white fill leaves the links at 3.63:1, under the 4.5 WCAG asks at 14.5px.
+   A 0.26 dark tint would read 5.43:1 if this is ever revisited. */
+.nav {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px) saturate(170%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* the glass pill that slides between the links. Its box is set in JS from
+   the hovered link's measured rect — not offsetLeft, which would be
+   relative to the <ul> once that gets a stacking context of its own. */
+/* Light glass, to match the bar. It costs contrast on the link it sits
+   behind — 4.05:1 measured, against the 4.5 WCAG asks — which is the same
+   trade-off as the light bar itself. Going 0.16 *darker* than the bar
+   instead would read 6.65:1 if this is ever revisited. */
+.nav-pill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.2),
+    0 6px 16px -12px rgba(6, 12, 16, 0.7);
+  backdrop-filter: blur(9px) saturate(190%);
+  -webkit-backdrop-filter: blur(9px) saturate(190%);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 0.42s var(--ease),
+    width 0.42s var(--ease),
+    height 0.42s var(--ease),
+    opacity 0.22s linear;
+}
+.nav-pill.is-on { opacity: 1; }
+/* the crescent of light along the top edge — 6px tall and fading out, so
+   it sits above the cap height rather than behind the type */
+.nav-pill::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 8px;
+  right: 8px;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+/* links have to sit above it */
+.nav-links { position: relative; z-index: 1; }
+
+/* everything in the bar is plain white text — no pills */
+.nav-mark,
+.nav-links a,
+.nav-socials a {
+  color: #fff;
+  transition: color 0.2s, opacity 0.2s;
+}
+.nav-cta { color: #3f6068; }
+.nav-mark {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+  /* Purely optical. Measured, the mark is already dead centre with both the
+     glass bar and the Contact button — all three share a mid-line, and the
+     logo's own ink is evenly distributed inside its box (alpha centroid
+     0.2px off at this size). It still read as sitting high next to two
+     filled pills, so it gets nudged. One number, tune it here. */
+  --mark-nudge: 5px;
+  transform: translateY(var(--mark-nudge));
+}
+/* two files rather than a filter: white over the hero photo, black once
+   the nav flips to its ink state */
+.nav-mark img { height: 30px; width: auto; }
+.nav-mark .mark-dark { display: none; }
+.nav-shell.is-scrolled .mark-light { display: none; }
+.nav-shell.is-scrolled .mark-dark  { display: block; }
+.nav-mark:hover { opacity: 0.78; }
+
+.nav-links { display: flex; align-items: center; gap: 2px; list-style: none; margin: 0; padding: 0; }
+.nav-links > li { position: relative; }
+.nav-links a {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 15px;
+  border-radius: 999px;
+  font-size: 14.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.nav-links a:hover { opacity: 0.78; }
+.nav-links a[aria-current="page"] { font-weight: 700; }
+.nav-links svg { width: 11px; height: 11px; transition: transform 0.25s var(--ease); }
+
+/* flyout on hover, and on keyboard focus via :focus-within — no JS */
+.nav-menu {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-6px);
+  min-width: 218px;
+  padding: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: var(--r-md);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.24s var(--ease), transform 0.24s var(--ease), visibility 0.24s;
+  /* the glassy, blurry panel from the reference */
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(26px) saturate(180%);
+  -webkit-backdrop-filter: blur(26px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  box-shadow: 0 20px 44px -14px rgba(10, 12, 20, 0.5);
+}
+.has-menu:hover .nav-menu,
+.has-menu:focus-within .nav-menu {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+.has-menu:hover .nav-links svg,
+.has-menu:focus-within .nav-links svg { transform: rotate(180deg); }
+.nav-menu a { padding: 9px 13px; border-radius: 10px; font-weight: 500; }
+.nav-menu a:hover { background: rgba(255, 255, 255, 0.22); opacity: 1; }
+
+/* minimal icon row, same marks as the footer */
+.nav-socials { display: flex; align-items: center; gap: 2px; }
+.nav-socials a {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #fff;
+  transition: background 0.2s, opacity 0.2s;
+}
+.nav-socials svg { width: 17px; height: 17px; }
+.nav-socials a:hover { background: rgba(255, 255, 255, 0.16); }
+
+/* Contact: solid white pill, type in the hero's own teal. The photo's
+   teal is about #567e84, which is 4.46:1 on white — just under — so the
+   type uses #3f6068, the same hue two steps down, at 6.8:1. */
+.nav-cta {
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-size: 14.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  background: #fff;
+  border: 1px solid #fff;
+  box-shadow: 0 2px 4px rgba(20, 30, 34, 0.12), 0 10px 22px -10px rgba(20, 30, 34, 0.4);
+  transition: background 0.2s, transform 0.2s var(--ease), box-shadow 0.2s;
+}
+.nav-cta:hover { transform: translateY(-1px); box-shadow: 0 3px 6px rgba(20,30,34,.14), 0 14px 28px -10px rgba(20,30,34,.45); }
+
+/* ---- scrolled past the lander: the photo is gone, so flip to ink ----
+   JS adds .is-scrolled. Without JS the nav stays in its white state,
+   which is correct for the top of the page where everyone lands. */
+.nav-shell.is-scrolled .nav {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 1px 2px rgba(35,37,43,.04), 0 10px 26px -14px rgba(52,46,60,.26);
+}
+.nav-shell.is-scrolled .nav-links a,
+.nav-shell.is-scrolled .nav-socials a { color: var(--ink); }
+/* over the light bar a white pill would vanish — tint it instead */
+.nav-shell.is-scrolled .nav-pill {
+  background: rgba(63, 96, 104, 0.1);
+  border-color: rgba(63, 96, 104, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 4px 12px -9px rgba(20, 30, 34, 0.7);
+}
+.nav-shell.is-scrolled .nav-pill::after {
+  background: linear-gradient(rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+}
+.nav-shell.is-scrolled .nav-socials a:hover { background: rgba(35, 37, 43, 0.08); }
+/* over the light page the white pill needs an edge to be a pill at all */
+.nav-shell.is-scrolled .nav-cta {
+  border-color: rgba(35, 37, 43, 0.14);
+  box-shadow: 0 1px 2px rgba(35, 37, 43, 0.05), 0 8px 18px -10px rgba(52, 46, 60, 0.3);
+}
+.nav-shell.is-scrolled .nav-menu {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 4px rgba(35,37,43,.05), 0 18px 40px -12px rgba(52,46,60,.3);
+}
+.nav-shell.is-scrolled .nav-menu a:hover { background: #fff; }
+
+/* =============================================================
+   LANDER — full-bleed hero above the bento
+   Layout follows the reference: nav across the top, a big translucent
+   mark centred, the headline low-left and a short blurb plus two
+   buttons low-right.
+   ============================================================= */
+.lander-wrap { position: relative; }
+
+.lander {
+  position: relative;
+  min-height: min(88vh, 745px);
+  margin-top: calc(-1 * var(--nav-h));
+  padding-top: var(--nav-h);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  color: #fff;
+  /* Dark top and bottom, clear through the middle. Without it the petals
+     reach L 0.573 where the headline sits, which is 1.68:1 against white.
+     Measured under this vignette: nav band L 0.135 (5.7:1), headline zone
+     L 0.141 (5.5:1). */
+  background-image:
+    linear-gradient(180deg,
+      rgba(16, 18, 24, 0.46) 0%,
+      rgba(16, 18, 24, 0.20) 14%,
+      rgba(16, 18, 24, 0.00) 34%,
+      rgba(16, 18, 24, 0.30) 56%,
+      rgba(16, 18, 24, 0.52) 78%,
+      rgba(16, 18, 24, 0.58) 100%),
+    url("assets/photos/art-three-flowers.jpg");
+  background-size: cover, cover;
+  background-position: center, 50% 0%;
+}
+
+/* Headshot in a glass bubble, rimmed like the ghost button, with smaller
+   empty bubbles around it. Same surface recipe as `.lander-cta .ghost`:
+   0.14 white, a 16px blur and a 0.5 white rim. */
+.lander-orbit {
+  position: absolute;
+  right: clamp(12px, 5vw, 74px);
+  top: 50%;
+  transform: translateY(-46%);
+  width: clamp(200px, 26vw, 330px);
+  aspect-ratio: 1;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.bubble {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(16px) saturate(165%);
+  -webkit-backdrop-filter: blur(16px) saturate(165%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow:
+    0 10px 30px -12px rgba(12, 20, 24, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.bubble--portrait {
+  inset: 0;
+  margin: 0;
+  padding: 7px;
+  overflow: hidden;
+}
+.bubble--portrait img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: 50% 22%;
+}
+/* the headshot floats too, on a longer, quieter loop than the empties —
+   and translate only, no scale: a breathing 330px portrait reads as a
+   wobble. JS takes this over so the cursor push can compose with it. */
+.js .bubble--portrait { animation: drift-portrait 14s ease-in-out infinite; }
+@keyframes drift-portrait {
+  0%   { transform: translate(0, 0); }
+  33%  { transform: translate(-4px, -7px); }
+  66%  { transform: translate(5px, 4px); }
+  100% { transform: translate(0, 0); }
+}
+
+/* the empty ones — a size and a place each, plus their own drift loop.
+   Three layers make the shine: a bright specular cap at the upper left, a
+   cool tint pooling at the lower right, and a rim light on the shadow side
+   — the way light actually wraps a soap bubble. */
+.bubble--sm {
+  background:
+    radial-gradient(58% 52% at 30% 24%,
+      rgba(255, 255, 255, 0.85) 0%,
+      rgba(255, 255, 255, 0.22) 46%,
+      rgba(255, 255, 255, 0) 70%),
+    radial-gradient(115% 115% at 74% 82%,
+      rgba(186, 230, 240, 0.34) 0%,
+      rgba(255, 255, 255, 0.04) 62%),
+    rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 10px 30px -12px rgba(12, 20, 24, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62),
+    /* rim light curving round the underside */
+    inset -2px -3px 7px -3px rgba(255, 255, 255, 0.8),
+    inset 3px 4px 9px -5px rgba(110, 175, 190, 0.55);
+}
+/* the hard little glint — kept a true circle so it stays crisp at 9px */
+.bubble--sm::after {
+  content: "";
+  position: absolute;
+  top: 15%;
+  left: 19%;
+  width: 25%;
+  height: 25%;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0.92;
+}
+.s1 { width: 11%; height: 11%; top: -8%;   left: 14%;  }
+.s2 { width: 7%;  height: 7%;  top: 8%;    left: -11%; }
+.s3 { width: 15%; height: 15%; bottom: -9%; left: -13%; }
+.s4 { width: 5.5%; height: 5.5%; bottom: 16%; right: -9%; }
+.s5 { width: 9%;  height: 9%;  top: 26%;   right: -13%; }
+.s6 { width: 4.5%; height: 4.5%; bottom: -5%; right: 26%; }
+.s7 { width: 6.5%; height: 6.5%; top: -4%;  right: 6%;  }
+
+.js .bubble--sm { animation: drift 9s ease-in-out infinite; }
+.js .s1 { animation-duration: 8.4s;  animation-delay: -1.1s; }
+.js .s2 { animation-duration: 11.2s; animation-delay: -4.3s; }
+.js .s3 { animation-duration: 9.7s;  animation-delay: -2.6s; }
+.js .s4 { animation-duration: 7.6s;  animation-delay: -5.8s; }
+.js .s5 { animation-duration: 10.4s; animation-delay: -0.7s; }
+.js .s6 { animation-duration: 8.9s;  animation-delay: -3.4s; }
+.js .s7 { animation-duration: 12.1s; animation-delay: -6.2s; }
+@keyframes drift {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(6px, -9px) scale(1.05); }
+  66%  { transform: translate(-5px, -4px) scale(0.96); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+.lander-inner {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 26px;
+  padding-bottom: clamp(48px, 8vw, 96px);
+}
+
+/* smaller than before, and the second clause takes its own line */
+.lander h1 {
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: clamp(27px, 3.5vw, 45px);
+  line-height: 1.08;
+  letter-spacing: -0.024em;
+  max-width: 31ch;   /* keeps "Content that stops the scroll." on one line */
+  color: #fff;
+}
+.lander h1 span {
+  display: block;
+  color: rgba(255, 255, 255, 0.64);   /* 0.55 measured 2.86:1, under the 3:1 bar */
+}
+.lander h1 em { font-style: normal; color: #fff; }
+
+.lander-cta { display: flex; gap: 10px; flex-wrap: wrap; }
+.lander-cta a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: transform 0.25s var(--ease), background 0.25s var(--ease);
+}
+.lander-cta .solid {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 2px 4px rgba(35,37,43,.06), 0 12px 26px -10px rgba(52,46,60,.34);
+}
+.lander-cta .solid:hover { transform: translateY(-2px); }
+.lander-cta .ghost {
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  color: #fff;
+}
+.lander-cta .ghost:hover { transform: translateY(-2px); background: rgba(255,255,255,.24); }
+
+/* back where it was: centred behind everything, white and faint */
+
+/* Lead-in between the hero and the grid. Generous top padding on
+   purpose — the heading was landing right against the bottom edge of the
+   lander photo. */
+.section-lead { padding: clamp(80px, 10vw, 140px) 0 12px; }
+.section-lead h2 {
+  font-size: clamp(30px, 4.4vw, 44px);
+  margin-top: 10px;
+  letter-spacing: -0.026em;
+}
+
+/* =============================================================
+   BENTO
+   ============================================================= */
+.bento {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* minmax, not a fixed height: at full width every card fits inside
+     210px so the grid stays even, but a row is allowed to grow rather
+     than clip its own card when the columns get narrow */
+  grid-auto-rows: minmax(210px, auto);
+  gap: 14px;
+  padding-block: 18px 8px;
+}
+
+.b {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  /* the glass itself: blurs the page wash showing through the fill */
+  backdrop-filter: blur(34px) saturate(185%);
+  -webkit-backdrop-filter: blur(34px) saturate(185%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow:
+    0 1px 2px rgba(35, 37, 43, 0.04),
+    0 14px 34px -14px rgba(52, 46, 60, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  transition: transform 0.4s var(--ease), box-shadow 0.4s var(--ease);
+}
+
+/* a diagonal specular sheen — the thing that reads as an actual pane of
+   glass rather than a tinted rectangle */
+.b::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(
+    128deg,
+    rgba(255, 255, 255, 0.42) 0%,
+    rgba(255, 255, 255, 0.12) 26%,
+    rgba(255, 255, 255, 0) 46%,
+    rgba(255, 255, 255, 0.08) 76%,
+    rgba(255, 255, 255, 0.3) 100%);
+  mix-blend-mode: soft-light;
+}
+
+a.b:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 2px 4px rgba(35, 37, 43, 0.05),
+    0 26px 52px -16px rgba(52, 46, 60, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.24);
+}
+/* the solid coral card carries its own rim */
+/* the photo tiles keep the sheen but not over the image detail */
+.b--photo::after { background: none; }
+
+/* =============================================================
+   Load-in — cards settle into place
+   Pure CSS, gated on .js only so a script failure leaves them put.
+   ============================================================= */
+@keyframes tileIn {
+  from { opacity: 0; transform: translateY(30px) scale(0.965); }
+  to   { opacity: 1; transform: none; }
+}
+.js .bento > * {
+  animation: tileIn 0.72s var(--ease) backwards;
+}
+.js .bento > *:nth-child(1) { animation-delay: 0.04s; }
+.js .bento > *:nth-child(2) { animation-delay: 0.10s; }
+.js .bento > *:nth-child(3) { animation-delay: 0.16s; }
+.js .bento > *:nth-child(4) { animation-delay: 0.22s; }
+.js .bento > *:nth-child(5) { animation-delay: 0.28s; }
+.js .bento > *:nth-child(6) { animation-delay: 0.34s; }
+.js .bento > *:nth-child(7) { animation-delay: 0.40s; }
+.js .bento > *:nth-child(8) { animation-delay: 0.46s; }
+.js .bento > *:nth-child(9) { animation-delay: 0.52s; }
+/* nav drops in just ahead of the grid */
+.js .nav { animation: tileIn 0.6s var(--ease) backwards; }
+
+.b h2, .b h3 { letter-spacing: -0.03em; }
+
+/* spans
+   The left three columns are one stack: the hero, then the three
+   collection cards under it. Column 4 is the sidebar — the chair photo,
+   then the views stat, then LinkedIn running the last two rows. Source
+   order is hero, chair, career, views, beauty, linkedin, events, quote,
+   which auto-places into exactly that shape with no holes. */
+/* the right padding reserves the column the floating panel sits in,
+   so the headline and bio never run underneath it */
+.b--hero   { grid-column: span 3; grid-row: span 2; padding: 30px 300px 30px 34px; }
+.b--tall   { grid-row: span 2; }
+.b--wide   { grid-column: span 3; }
+.b--full   { grid-column: 1 / -1; }
+
+/* --- hero card -------------------------------------------- */
+.b--hero h2 {
+  font-size: clamp(30px, 3.6vw, 42px);
+  letter-spacing: -0.038em;
+  line-height: 1.02;
+  /* Two lines, and the measure is what controls that — 12ch broke the
+     current heading over three. 14ch is also the balanced break: it splits
+     "It's so nice to / finally meet you!", where 15ch and wider push it to
+     "It's so nice to finally / meet you!" and go top-heavy.
+     Retune if the heading text changes length. */
+  max-width: 14ch;
+}
+.b--hero h2 em {
+  font-style: italic;
+  font-weight: 400;
+  font-family: var(--font-display);
+  color: var(--accent-deep);
+}
+.b--hero .lede {
+  margin: 13px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+  font-weight: 400;
+  color: var(--ink-soft);
+  /* the card is three columns wide now — without a cap the measure runs
+     past 70 characters and gets tiring to read */
+  max-width: 56ch;
+}
+.hero-foot { margin-top: auto; padding-top: 18px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* the floating "menu" panel, echoing the typeface dropdown */
+.panel {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* centred against the taller three-column hero, so the card doesn't go
+   heavy on the left with a dead corner under the panel */
+.panel--menu {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  right: 26px;
+  width: 250px;
+  padding: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 2;
+}
+.menu-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.menu-row:hover { background: #fff; border-color: var(--line); box-shadow: var(--shadow-xs); }
+.menu-row.is-active { background: #fff; border-color: var(--line); box-shadow: var(--shadow-sm); }
+.menu-key { font-size: 14.5px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em; }
+/* --muted landed at 4.23:1 on this panel over the hero photo */
+.menu-sub { font-size: 11.5px; color: var(--ink-soft); font-weight: 400; line-height: 1.35; }
+
+/* the little pointer graphic from the reference */
+.cursor {
+  position: absolute;
+  width: 21px;
+  height: 21px;
+  z-index: 3;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.28));
+  pointer-events: none;
+}
+
+/* --- coral anchor card ------------------------------------- */
+
+/* --- confetti spritz ---------------------------------------
+   Fires on hover of the tile. Pure CSS: twelve particles, each with
+   its own direction, colour and delay via nth-child. Purely
+   decorative and aria-hidden, and it collapses under
+   prefers-reduced-motion along with everything else. */
+.has-confetti { overflow: hidden; }
+.confetti {
+  position: absolute;
+  top: 34%;
+  left: 26%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+.confetti i {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.has-confetti:hover .confetti i {
+  animation: spritz 900ms var(--ease) forwards;
+}
+@keyframes spritz {
+  0%   { opacity: 0; transform: translate(0, 0) scale(0.4) rotate(0deg); }
+  14%  { opacity: 1; }
+  100% { opacity: 0;
+         transform: translate(var(--dx), var(--dy)) scale(1) rotate(var(--rot)); }
+}
+.confetti i:nth-child(1)  { --dx:  62px; --dy: -54px; --rot: 220deg; background: #f2b2ae; animation-delay: 0ms; }
+.confetti i:nth-child(2)  { --dx: -48px; --dy: -62px; --rot: -180deg; background: #ff8ab5; animation-delay: 40ms; }
+.confetti i:nth-child(3)  { --dx:  96px; --dy: -22px; --rot: 300deg; background: #ffc94a; animation-delay: 20ms; border-radius: 50%; }
+.confetti i:nth-child(4)  { --dx: -74px; --dy: -14px; --rot: 140deg; background: #5ec2f0; animation-delay: 70ms; }
+.confetti i:nth-child(5)  { --dx:  34px; --dy: -88px; --rot: -260deg; background: #7ad6a4; animation-delay: 10ms; }
+.confetti i:nth-child(6)  { --dx: -18px; --dy: -96px; --rot: 200deg; background: #f2b2ae; animation-delay: 90ms; border-radius: 50%; }
+.confetti i:nth-child(7)  { --dx: 118px; --dy: -66px; --rot: -160deg; background: #c9a6f5; animation-delay: 55ms; }
+.confetti i:nth-child(8)  { --dx: -96px; --dy: -74px; --rot: 240deg; background: #ffc94a; animation-delay: 30ms; }
+.confetti i:nth-child(9)  { --dx:  76px; --dy:  36px; --rot: 180deg; background: #ff8ab5; animation-delay: 100ms; }
+.confetti i:nth-child(10) { --dx: -58px; --dy:  42px; --rot: -220deg; background: #5ec2f0; animation-delay: 65ms; border-radius: 50%; }
+.confetti i:nth-child(11) { --dx: 142px; --dy:   6px; --rot: 120deg; background: #7ad6a4; animation-delay: 45ms; }
+.confetti i:nth-child(12) { --dx:  10px; --dy:  62px; --rot: -140deg; background: #c9a6f5; animation-delay: 80ms; }
+
+/* --- stat cards -------------------------------------------- */
+.b .stat {
+  font-family: var(--font-display);
+  font-size: clamp(36px, 4.8vw, 52px);
+  font-weight: 600;
+  letter-spacing: -0.028em;
+  line-height: 1;
+}
+.b .stat-sub { margin-top: 6px; font-size: 13.5px; color: var(--ink-soft); font-weight: 400; }
+/* On the photo-backed tiles --ink-soft can't reach 4.5:1 without a veil
+   heavy enough to wash the picture out (the flower needed 0.62). The text
+   steps to --ink instead, which clears 6.4:1 at the current veil. */
+.b .cap {
+  margin-top: auto;
+  padding-top: 14px;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);   /* --muted is too light on the card fills */
+}
+/* AFTER `.b .stat-sub` and `.b .cap`, deliberately. Every one of these
+   selectors is two classes, so the later block wins — this override used to
+   sit above `.b .cap` and lost, which only surfaced once a tile dark enough
+   to fail existed. */
+.art-flower .stat-sub,
+.art-sky .stat-sub,
+.art-petal .stat-sub,
+.art-flower .cap,
+.art-sky .cap,
+.art-petal .cap { color: var(--ink); }
+.stat-row { display: flex; gap: 26px; flex-wrap: wrap; }
+
+/* --- photo card -------------------------------------------- */
+.b--photo { padding: 0; }
+/* absolute, not height:100% — on an auto-sized grid row a percentage
+   height has nothing to resolve against, so the image would fall back
+   to its intrinsic aspect and stretch the whole row to fit */
+.b--photo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.b--photo figcaption {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  z-index: 2;
+}
+
+/* shown only if the image file isn't there yet */
+.photo-missing { display: none; }
+.b--photo.is-missing {
+  padding: 22px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  background:
+    radial-gradient(60% 60% at 30% 25%, rgba(214, 201, 245, 0.5) 0%, transparent 65%),
+    rgba(255, 255, 255, 0.5);
+}
+.b--photo.is-missing img,
+.b--photo.is-missing figcaption { display: none; }
+.b--photo.is-missing .photo-missing {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.7;
+  color: var(--ink-soft);
+}
+.b--photo.is-missing code {
+  font-size: 11.5px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 3px 7px;
+  border-radius: 6px;
+}
+
+/* Bare white mark in a tile's top-left, no disc. White on the peachy
+   flower is only ~1.9:1 as a flat fill, so it leans on a dark drop-shadow
+   for separation rather than a filled circle. */
+.tile-mark {
+  position: absolute;
+  top: 16px;
+  left: 18px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  /* White on this peachy tile is only 1.27:1 as a flat fill, so the
+     separation comes entirely from these shadows: a tight dark one to
+     give the strokes an edge, then a wider one for lift. */
+  filter:
+    drop-shadow(0 0 1px rgba(70, 22, 18, 0.9))
+    drop-shadow(0 1px 2px rgba(70, 22, 18, 0.75))
+    drop-shadow(0 4px 10px rgba(70, 22, 18, 0.5));
+}
+.tile-mark svg { width: 30px; height: 30px; }
+
+/* --- card title + arrow ------------------------------------ */
+.b-title { display: block; }
+/* keeps the heading clear of the pinned arrow */
+.b-title h3 { font-size: 19px; padding-right: 42px; }
+
+/* Pinned to the card, not to the title row. Inside the row it drifted
+   with the heading's wrap, so the four collection tiles never lined up. */
+.arrow {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 3;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(10px) saturate(150%);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  color: var(--ink);
+  box-shadow:
+    0 1px 2px rgba(35, 37, 43, 0.06),
+    0 6px 14px -6px rgba(52, 46, 60, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition: transform 0.3s var(--ease), background 0.3s;
+}
+.arrow svg { width: 14px; height: 14px; }
+a.b:hover .arrow { transform: translate(3px, -3px); background: #fff; }
+
+/* --- niche card --------------------------------------------
+   Scattered, not lined up: each pill sits at a slightly different
+   height and tilt so the row reads as floating tags, the way they do
+   in the Notes Analyzer card on the reference board. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px 8px;
+  margin-top: auto;
+  padding-top: 16px;
+}
+/* Properly glassy — thin enough to see the tile through — and each pill
+   drifts on its own loop so the row never looks aligned. Durations are
+   deliberately non-multiples of each other so they don't resynchronise. */
+.chips .chip {
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(26px) saturate(210%);
+  -webkit-backdrop-filter: blur(26px) saturate(210%);
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  box-shadow:
+    0 1px 1px rgba(35, 37, 43, 0.04),
+    0 8px 18px -6px rgba(52, 46, 60, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.js .chips .chip { animation: bob 7s ease-in-out infinite; }
+.js .chips .chip:nth-child(1) { animation-duration: 6.2s;  animation-delay: -0.4s; }
+.js .chips .chip:nth-child(2) { animation-duration: 8.1s;  animation-delay: -2.7s; }
+.js .chips .chip:nth-child(3) { animation-duration: 7.3s;  animation-delay: -4.9s; }
+@keyframes bob {
+  0%   { transform: translate(0, 2px)     rotate(-1.6deg); }
+  25%  { transform: translate(3px, -3px)  rotate(0.9deg); }
+  50%  { transform: translate(-2px, -5px) rotate(2deg); }
+  75%  { transform: translate(1px, -1px)  rotate(-0.7deg); }
+  100% { transform: translate(0, 2px)     rotate(-1.6deg); }
+}
+/* settle and lift together on hover */
+a.b:hover .chips .chip {
+  animation-play-state: paused;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 1px 1px rgba(35, 37, 43, 0.05),
+    0 12px 22px -6px rgba(52, 46, 60, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+
+/* scattered thumbnails tucked into the corner of a collection card */
+.mini {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  display: flex;
+  gap: 8px;
+  pointer-events: none;
+}
+.mini img {
+  /* both axes scale off the same vw so the 3:4-ish crop holds all the way
+     up; the floor is the old fixed size, for the narrow end of the range */
+  width: clamp(76px, 7.4vw, 100px);
+  height: clamp(97px, 9.4vw, 127px);
+  object-fit: cover;
+  border-radius: 10px;
+  border: 2.5px solid rgba(255, 255, 255, 0.95);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.4s var(--ease);
+}
+.mini img:nth-child(1) { transform: rotate(-6deg); }
+.mini img:nth-child(2) { transform: rotate(2deg); }
+.mini img:nth-child(3) { transform: rotate(8deg); }
+a.b:hover .mini img:nth-child(1) { transform: rotate(-9deg) translateY(-4px); }
+a.b:hover .mini img:nth-child(2) { transform: rotate(1deg)  translateY(-6px); }
+a.b:hover .mini img:nth-child(3) { transform: rotate(11deg) translateY(-4px); }
+
+/* keep the copy clear of those thumbnails */
+/* the strip is 3 thumbs + two 8px gaps, sitting 20px off the right edge.
+   The reserve has to track the thumb width and clear all of that plus
+   breathing room, or the hashtag chips run straight into the thumbnails:
+   3w + 16px gap + 20px offset + 32px of air. */
+.b--wide.has-mini { padding-right: clamp(296px, calc(22.2vw + 68px), 368px); }
+
+/* --- brand strip card -------------------------------------- */
+.b--brands .logo-row {
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+.b--brands .logo-row img {
+  max-height: 24px;
+  width: auto;
+  margin-inline: auto;
+  filter: saturate(0.06) opacity(0.62);
+}
+
+/* --- quote card -------------------------------------------- */
+.b--quote .panel {
+  margin-top: auto;
+  padding: 15px 16px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+/* full-width quote: two panels side by side */
+.b--full.b--quote { justify-content: center; }
+.quote-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+.b--full.b--quote .panel {
+  margin: 0;
+  padding: 17px 19px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+  transition: transform 0.32s var(--ease), box-shadow 0.32s var(--ease),
+              background 0.32s var(--ease);
+}
+/* each recommendation lifts on its own */
+.b--full.b--quote .panel:hover {
+  transform: translateY(-5px);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow:
+    0 2px 4px rgba(35, 37, 43, 0.05),
+    0 20px 40px -14px rgba(52, 46, 60, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+.b--full.b--quote .panel:hover .who img { transform: scale(1.06); }
+.b--full.b--quote .who img { transition: transform 0.32s var(--ease); }
+.b--full.b--quote .panel .mark { display: none; }
+/* the quote panel sits on a photo now, so it needs to be opaque */
+.b--full.b--quote .panel { background: rgba(255, 255, 255, 0.62); }
+.b--quote .who { display: flex; align-items: center; gap: 9px; margin-top: 11px; }
+.b--quote .who img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; }
+.b--quote .who b { font-size: 12.5px; display: block; line-height: 1.25; color: var(--ink); }
+.b--quote .who span { font-size: 11.5px; color: var(--muted); }
+/* the quote panels are translucent now, so --muted lost its footing there
+   (3.98:1 at 11.5px) — the role line steps to --ink-soft */
+.b--full.b--quote .who span { color: var(--ink-soft); }
+
+/* the company, linked out to their site. Teal plus a small arrow carries
+   the affordance so the role line doesn't need a permanent underline;
+   the underline only shows on hover. */
+.qco {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--hover);
+  font-weight: 600;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
+}
+.qco svg { width: 9px; height: 9px; }
+.qco:hover,
+.qco:focus-visible { border-bottom-color: var(--hover); }
+
+/* =============================================================
+   Collection pages
+   ============================================================= */
+.page-head {
+  border-radius: var(--r-xl);
+  padding: clamp(28px, 4.4vw, 52px);
+  margin-block: 18px 34px;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(24px) saturate(165%);
+  -webkit-backdrop-filter: blur(24px) saturate(165%);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 1px 2px rgba(35, 37, 43, 0.04),
+    0 18px 40px -18px rgba(52, 46, 60, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* --- art behind each collection's title band ------------------
+   One photo per page. Every veil below is solved, not eyeballed: for the
+   real 1136x385 box, cover-cropped at the position given, I took the
+   darkest pixel inside the text column and found the smallest white alpha
+   where --ink-soft clears 4.5:1 and the h1 clears 3:1.
+
+   The veil is GRADED, not flat. Measured on career.html, the longest line
+   (the body copy) ends at 49.2% of the box and the h1 at 38.6% — the right
+   half carries no text at all. So full strength runs to 64%, then eases
+   off, and the photograph actually reads instead of being bleached. Third
+   layer in each stack is the old flat grey, so a missing file degrades to
+   the plain card rather than to bare white.
+
+   If you swap a photo, re-solve the veil — a darker image needs more. */
+.art-head { background-size: cover, cover, cover; }
+
+/* darkest in the text column rgb(81,146,164) -> 0.49 gives 4.61:1 */
+.art-head--career {
+  background-image:
+    linear-gradient(90deg,
+      rgba(255, 255, 255, 0.49) 0%,
+      rgba(255, 255, 255, 0.49) 64%,
+      rgba(255, 255, 255, 0.27) 100%),
+    url("assets/photos/art-flowers.jpg"),
+    linear-gradient(rgba(241, 241, 244, 0.72), rgba(241, 241, 244, 0.72));
+  background-position: center, 50% 60%, center;
+}
+
+/* the SOFT tulips, not art-tulips.jpg — that file is drawn out of ASCII
+   characters, and behind body copy the glyph texture is unreadable noise.
+   Blurred, it needs less veil too: darkest rgb(112,156,184) -> 0.41 = 4.56:1 */
+.art-head--beauty {
+  background-image:
+    linear-gradient(90deg,
+      rgba(255, 255, 255, 0.41) 0%,
+      rgba(255, 255, 255, 0.41) 64%,
+      rgba(255, 255, 255, 0.22) 100%),
+    url("assets/photos/art-tulips-soft.jpg"),
+    linear-gradient(rgba(241, 241, 244, 0.72), rgba(241, 241, 244, 0.72));
+  background-position: center, 50% 0%, center;
+}
+
+/* the cool one of the three, so the pages don't all read peach. The crop is
+   centred on the yellow tulip head, which lands on the right of the banner
+   where there's no text. darkest rgb(156,171,216) -> 0.26 gives 4.59:1 */
+.art-head--events {
+  background-image:
+    linear-gradient(90deg,
+      rgba(255, 255, 255, 0.26) 0%,
+      rgba(255, 255, 255, 0.26) 64%,
+      rgba(255, 255, 255, 0.12) 100%),
+    url("assets/photos/art-blue.jpg"),
+    linear-gradient(rgba(241, 241, 244, 0.72), rgba(241, 241, 244, 0.72));
+  background-position: center, 50% 60%, center;
+}
+
+/* The 64% breakpoint only holds while the card is wide. As it narrows the
+   copy keeps its 48ch measure and so occupies more of the width — past
+   the ramp — so below this the veil goes flat at full strength. */
+@media (max-width: 1000px) {
+  .art-head--career { background-image:
+    linear-gradient(rgba(255,255,255,0.49), rgba(255,255,255,0.49)),
+    url("assets/photos/art-flowers.jpg"),
+    linear-gradient(rgba(241,241,244,0.72), rgba(241,241,244,0.72)); }
+  .art-head--beauty { background-image:
+    linear-gradient(rgba(255,255,255,0.41), rgba(255,255,255,0.41)),
+    url("assets/photos/art-tulips-soft.jpg"),
+    linear-gradient(rgba(241,241,244,0.72), rgba(241,241,244,0.72)); }
+  .art-head--events { background-image:
+    linear-gradient(rgba(255,255,255,0.3), rgba(255,255,255,0.3)),
+    url("assets/photos/art-blue.jpg"),
+    linear-gradient(rgba(241,241,244,0.72), rgba(241,241,244,0.72)); }
+}
+
+.page-head h1 {
+  font-size: clamp(34px, 5.4vw, 58px);
+  letter-spacing: -0.028em;
+  max-width: 24ch;   /* 16ch pushed the trailing emoji onto its own line */
+}
+.page-head p {
+  margin: 14px 0 0;
+  max-width: 48ch;
+  font-size: clamp(15px, 1.7vw, 18px);
+  font-weight: 300;
+  color: var(--ink-soft);
+}
+.page-head .head-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  margin-bottom: 16px;
+}
+.back:hover { color: var(--hover); }
+.back svg { width: 14px; height: 14px; }
+
+/* video grid */
+.videos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.vcard {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(24px) saturate(165%);
+  -webkit-backdrop-filter: blur(24px) saturate(165%);
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  box-shadow:
+    0 1px 2px rgba(35, 37, 43, 0.04),
+    0 12px 30px -14px rgba(52, 46, 60, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  transition: transform 0.35s var(--ease), box-shadow 0.35s var(--ease);
+}
+.vcard:hover {
+  transform: translateY(-6px);
+  box-shadow:
+    0 2px 4px rgba(35, 37, 43, 0.05),
+    0 22px 46px -16px rgba(52, 46, 60, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.vthumb { position: relative; aspect-ratio: 9 / 10; overflow: hidden; background: var(--surface); }
+
+/* card with no screenshot yet — reads as a designed tile rather than a
+   broken image, and still links straight to the post */
+.vthumb--none {
+  display: flex;
+  align-items: flex-end;
+  padding: 20px;
+}
+.vthumb--none .vthumb-cap {
+  font-family: var(--font-display);
+  font-size: 21px;
+  line-height: 1.2;
+  letter-spacing: -0.018em;
+  color: var(--ink);
+}
+.vthumb--none .glyph {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: var(--shadow-xs);
+  font-size: 13px;
+  color: var(--ink-soft);
+  padding-left: 2px;
+}
+.vthumb img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.7s var(--ease); }
+.vcard:hover .vthumb img { transform: scale(1.06); }
+.vthumb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.4) 100%);
+  opacity: 0;
+  transition: opacity 0.35s;
+}
+.vcard:hover .vthumb::after { opacity: 1; }
+
+.vplay { position: absolute; inset: 0; display: grid; place-items: center; opacity: 0; transition: opacity 0.3s var(--ease); }
+.vcard:hover .vplay { opacity: 1; }
+.vplay span {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow-md);
+  transform: scale(0.85);
+  transition: transform 0.3s var(--ease);
+}
+.vcard:hover .vplay span { transform: scale(1); }
+.vplay svg { width: 20px; height: 20px; margin-left: 3px; color: var(--ink); }
+
+.vviews {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(20, 20, 24, 0.62);
+  backdrop-filter: blur(10px);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.vviews svg { width: 12px; height: 12px; }
+.vpin {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--accent-deep);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.vbody { display: flex; flex-direction: column; gap: 12px; padding: 15px 16px 17px; }
+.vbody p {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.vmeta { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.vlink {
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.vcard:hover .vlink { color: var(--hover); }
+
+/* products strip (beauty page) */
+.products { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.product {
+  position: relative;
+  border-radius: var(--r-lg);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform 0.35s var(--ease),
+    box-shadow 0.35s var(--ease),
+    background 0.35s var(--ease);
+}
+/* a pink halo blooming behind the bottle, so hovering reads as picking
+   the thing up off a lit shelf rather than just raising a card. Centred
+   on the image box — 20px of padding plus half of its 120px. */
+.product::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 80px;
+  width: 172px;
+  height: 172px;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(255, 92, 138, 0.22) 0%,
+    rgba(255, 92, 138, 0.09) 44%,
+    rgba(255, 92, 138, 0) 72%);
+  transform: translate(-50%, -50%) scale(0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s var(--ease), transform 0.5s var(--ease);
+}
+/* positioned, so it would otherwise paint over the untouched-by-z-index
+   image sitting in normal flow beneath it */
+.product img {
+  position: relative;
+  z-index: 1;
+  height: 120px;
+  width: auto;
+  object-fit: contain;
+  transition: transform 0.4s var(--ease);
+}
+.product span { font-size: 12.5px; font-weight: 700; color: var(--ink-soft); line-height: 1.4; }
+
+.product:hover { transform: translateY(-5px); background: #fff; box-shadow: var(--shadow-md); }
+.product:hover::before { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.product:hover img { transform: translateY(-5px) scale(1.07); }
+.product:hover span { color: var(--ink); }
+
+/* empty-state note when a collection has few videos */
+.note {
+  border: 1px dashed #d3d6dd;
+  border-radius: var(--r-lg);
+  padding: 22px 24px;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--ink-soft);
+  font-size: 14.5px;
+  font-weight: 300;
+}
+.note b { font-weight: 800; color: var(--ink); }
+
+/* =============================================================
+   Brands section
+   ============================================================= */
+.brand-group + .brand-group { margin-top: 30px; }
+.brand-group h3 { display: flex; align-items: center; gap: 9px; font-size: 18px; margin-bottom: 14px; }
+
+.logos { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.logo {
+  display: grid;
+  place-items: center;
+  height: 86px;
+  padding: 18px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: var(--shadow-xs), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: transform 0.3s var(--ease), box-shadow 0.3s var(--ease), background 0.3s;
+}
+.logo:hover { transform: translateY(-4px); background: #fff; box-shadow: var(--shadow-md); }
+/* Pixel caps, not percentages. `max-height: 100%` wasn't resolving
+   against the 50px content box here — the square marks (Wealthsimple,
+   Blossom Social, Auralyze) were rendering 114px tall inside a 50px cell
+   and spilling into the row beneath. These caps also bring every logo
+   down in size, which is what was asked for. */
+.logo img {
+  max-height: 32px;
+  max-width: 92px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  filter: saturate(0.08) opacity(0.7);
+  transition: filter 0.3s;
+}
+/* the three square marks read visually larger at the same height, so
+   they get a slightly tighter cap */
+.logo img[alt="Wealthsimple Foundation"],
+.logo img[alt="Blossom Social"],
+.logo img[alt="Auralyze"] { max-height: 27px; }
+/* these two were reading small at the shared cap: NACIFIC is a very wide
+   wordmark so it's width-bound, K-SECRET is squarer so it's height-bound */
+.logo img[alt="NACIFIC"]  { max-width: 108px; max-height: 30px; }
+.logo img[alt="K-SECRET"] { max-height: 44px; }
+.logo img[alt="Tomo AI"]  { max-height: 26px; }
+.logo:hover img { filter: none; }
+
+/* =============================================================
+   Collab band
+   ============================================================= */
+.collab {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: clamp(24px, 4vw, 44px);
+  align-items: center;
+  padding: clamp(26px, 4vw, 46px);
+  border-radius: var(--r-xl);
+  /* Blurred rather than darkened, as asked. Blur alone doesn't make it
+     legible though — even at radius 26 the image still runs from L 0.036
+     to L 0.592, which no single text colour survives. So it's lifted with
+     a white veil instead of a dark one and the type went to ink. At 0.54
+     the darkest pixel lands at L 0.33, which is 5.6:1 for body copy. */
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.54), rgba(255, 255, 255, 0.54)),
+    url("assets/photos/art-tulips-soft.jpg");
+  background-size: cover, cover;
+  background-position: center, 50% 30%;
+  color: var(--ink);
+  box-shadow:
+    0 2px 4px rgba(35, 37, 43, 0.04),
+    0 26px 60px -26px rgba(52, 46, 60, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  overflow: hidden;
+}
+.collab-photo { border-radius: var(--r-lg); overflow: hidden; aspect-ratio: 4 / 5; box-shadow: var(--shadow-lg); }
+.collab-photo img { width: 100%; height: 100%; object-fit: cover; }
+
+/* --- the card flip -------------------------------------------
+   Hovering turns the photo over to reveal the second one, and it turns
+   back on the way out. `overflow: hidden` and 3D transforms fight each
+   other — a clipped parent flattens its children in some engines — so
+   the clip stays on .collab-photo and the rotation happens on an inner
+   element that isn't clipping anything. */
+.collab-photo.is-flip { overflow: visible; box-shadow: none; perspective: 1400px; }
+.flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--r-lg);
+  transform-style: preserve-3d;
+  transition: transform 0.72s cubic-bezier(0.3, 0.8, 0.3, 1);
+}
+.collab-photo.is-flip:hover .flip-inner,
+.collab-photo.is-flip:focus-within .flip-inner { transform: rotateY(180deg); }
+
+.flip-inner img {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.flip-back { transform: rotateY(180deg); }
+
+/* One heart, drifting off the right edge each time you hover. The
+   animation lives on :hover rather than on a class, which is what makes it
+   replay: leaving and coming back re-applies it from frame zero. It sits
+   outside .flip-inner so the card's rotation doesn't carry it away, and
+   .collab-photo.is-flip is overflow:visible so it can leave the frame. */
+.flip-heart {
+  position: absolute;
+  top: 34%;
+  right: 4px;
+  width: 17px;
+  height: 17px;
+  z-index: 4;
+  color: #f0819b;
+  opacity: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(120, 40, 60, 0.28));
+}
+.flip-heart svg { width: 100%; height: 100%; display: block; }
+.collab-photo.is-flip:hover .flip-heart {
+  animation: heart-drift 1.6s cubic-bezier(0.25, 0.6, 0.3, 1);
+}
+@keyframes heart-drift {
+  0%   { opacity: 0; transform: translate(0, 0) scale(0.3) rotate(-14deg); }
+  16%  { opacity: 1; }
+  65%  { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(30px, -62px) scale(1.05) rotate(14deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flip-inner { transition: none; }
+  .collab-photo.is-flip:hover .flip-heart { animation: none; }
+}
+.collab h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(34px, 5.6vw, 58px);
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+}
+.collab .eyebrow { color: var(--ink); }   /* --ink-soft was 2.91:1 on the veiled tulips */
+.collab p { margin: 14px 0 0; max-width: 42ch; font-weight: 400; font-size: 17px; color: var(--ink); }
+.collab-links { display: flex; flex-direction: column; gap: 10px; margin: 24px 0 22px; }
+/* No underline — these are glass chips instead, which matches the rest of
+   the page and gives the teal somewhere to live. The teal is only 2.47:1
+   against the veiled tulips, so it can't be the text colour; on a near-white
+   chip it clears comfortably, and the rim carries the hover. */
+.collab-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  font-weight: 700;
+  width: fit-content;
+  color: var(--ink);
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.66);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 1px 2px rgba(24, 20, 18, 0.06),
+    0 10px 22px -16px rgba(24, 20, 18, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(7px) saturate(150%);
+  -webkit-backdrop-filter: blur(7px) saturate(150%);
+  transition: transform 0.25s var(--ease), background 0.2s, border-color 0.2s;
+}
+.collab-links a:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--hover);
+}
+.collab-links a svg { color: var(--hover); }
+.collab-links svg { width: 17px; height: 17px; }
+
+.socials { display: flex; gap: 8px; }
+.socials a {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  box-shadow: var(--shadow-xs);
+  transition: transform 0.25s var(--ease), color 0.2s, background 0.2s;
+}
+.socials a:hover { transform: translateY(-3px); background: #fff; color: var(--hover); }
+.socials svg { width: 18px; height: 18px; }
+.collab .socials a {
+  background: rgba(255, 255, 255, 0.62);
+  border-color: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+}
+.collab .socials a:hover { background: #fff; color: var(--hover); }
+
+/* =============================================================
+   Footer
+   ============================================================= */
+.foot {
+  padding: 30px 0 44px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 13px;
+}
+.foot a:hover { color: var(--hover); }
+
+/* =============================================================
+   Scroll reveal
+   Scoped to .js so content is never hidden unless main.js is
+   actually running to reveal it again.
+   ============================================================= */
+.js .reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+}
+.js .reveal.in { opacity: 1; transform: none; }
+
+/* =============================================================
+   Responsive
+   ============================================================= */
+@media (max-width: 1000px) {
+  .bento { grid-auto-rows: minmax(190px, auto); }
+  .lander h1 { max-width: 15ch; }
+  .lander-orbit { width: clamp(170px, 24vw, 240px); }
+  .b--hero { padding-right: 224px; }
+  .b--hero h2 { font-size: clamp(28px, 4.2vw, 36px); }
+  .panel--menu { width: 182px; top: 22px; right: 22px; }
+  .videos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .products { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .collab { grid-template-columns: 1fr; }
+  .collab-photo { max-width: 300px; }
+  .nav-links a { padding: 6px 10px; font-size: 13.5px; }
+}
+
+@media (max-width: 760px) {
+  /* rows may grow past the minimum here — at two columns the cards get
+     narrow enough that fixed rows clip the longer testimonial */
+  /* dense, because at two columns the full-width cards can't fit beside
+     the tall headshot — without back-filling, the cells next to it are
+     left empty. Sparse flow never moves the cursor backwards. */
+  .bento {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: minmax(180px, auto);
+    grid-auto-flow: row dense;
+  }
+  .b--hero { grid-column: span 2; grid-row: span 2; }
+  .b--wide { grid-column: span 2; }
+  .b--full { grid-column: span 2; }
+  /* headshot keeps its portrait proportion; the stat cards don't need it */
+  .b--photo.b--tall { grid-row: span 2; }
+  .art-flower.b--tall { grid-row: span 1; }
+  /* Two of the three stat cards pair off beside the tall headshot; the
+     third lands after the full-width collection cards with nothing left to
+     sit next to it, and dense has no earlier gap to back-fill. Widening it
+     closes the hole rather than leaving a blank cell. */
+  .art-petal { grid-column: span 2; }
+  /* the scrim is tuned for a wide card — square up at two columns so the
+     petals aren't all crushed into the right edge */
+  .art-hero { background-position: center, 52% 44%, center; }
+  /* below this width there's no room for a floating panel — drop it
+     into the flow so it reads as a list instead */
+  /* static again, so the centring transform has to come off with it */
+  .panel--menu { position: static; width: 100%; margin-top: 16px; transform: none; }
+  .cursor { display: none; }
+  .b--hero { padding: 24px; grid-row: span 3; }
+
+  /* the corner thumbnails would leave the copy about 90px wide, so
+     they go and the reserved padding goes with them */
+  .mini { display: none; }
+  .b--wide.has-mini { padding-right: 22px; }
+}
+
+@media (max-width: 560px) {
+  .section { padding-block: 48px; }
+  .bento { grid-template-columns: 1fr; grid-auto-rows: auto; }
+  .b { min-height: 168px; }
+  /* .art-petal is widened at the two-column breakpoint above; that rule
+     still matches here, and a span-2 against a single-column template
+     conjures an implicit second column and wrecks the whole grid. */
+  .b--hero, .b--wide, .b--tall, .b--full,
+  .art-petal { grid-column: span 1; grid-row: span 1; }
+  .b--photo.b--tall { grid-row: span 1; min-height: 300px; }
+  /* One column: the copy runs to 92% of the card, so there is no clear
+     band left to open up. Scrim the whole tile — a soft tinted wash
+     instead of visible detail. Legibility wins on a phone. */
+  .art-hero {
+    background-image:
+      linear-gradient(160deg,
+        rgba(255, 255, 255, 0.72) 0%,
+        rgba(255, 255, 255, 0.68) 50%,
+        rgba(255, 255, 255, 0.66) 100%),
+      url("assets/photos/art-flowers.jpg"),
+      radial-gradient(135% 115% at 12% 8%,
+        rgba(255, 201, 168, 0.92) 0%,
+        rgba(255, 224, 214, 0.62) 46%,
+        rgba(252, 240, 245, 0.50) 100%);
+    background-position: center, 50% 42%, center;
+  }
+  .videos { grid-template-columns: 1fr; }
+  .products { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .logos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .b--brands .logo-row { grid-template-columns: repeat(3, 1fr); }
+  .quote-pair { grid-template-columns: 1fr; }
+
+  :root { --nav-h: 128px; }   /* nav is two rows here */
+
+  /* two rows: mark + Contact on top, the centred bar underneath */
+  .nav-row {
+    grid-template-columns: auto 1fr;
+    grid-template-areas: "mark actions" "bar bar";
+    row-gap: 10px;
+  }
+  .nav-mark    { grid-area: mark; font-size: 14px; }
+  .nav-actions { grid-area: actions; justify-self: end; }
+  .nav         { grid-area: bar; justify-self: center; }
+  .nav-links a { padding: 6px 12px; font-size: 13.5px; }
+  .nav-menu    { min-width: 196px; }
+
+  .lander { min-height: auto; padding-bottom: 8px; }
+  .lander-inner { padding-bottom: 40px; gap: 20px; }
+  .lander h1 { max-width: 100%; }
+  .lander-cta a { padding: 11px 17px; font-size: 14px; }
+  /* At one column there's no room beside the headline, and absolute
+     positioning put the bubble behind the 125px nav. So the hero stacks:
+     bubble first, right-aligned and below the bar, then the copy. */
+  .lander {
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: stretch;
+    min-height: 66vh;
+  }
+  .lander-orbit {
+    /* relative, not static: the portrait inside is `inset: 0`, and with
+       static it resolved against .lander and filled the whole hero */
+    position: relative;
+    inset: auto;
+    width: 126px;
+    align-self: flex-end;
+    margin: 0 2px 18px 0;
+    transform: none;
+  }
+  /* fewer, quieter empties at this size */
+  .s2, .s4, .s6 { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+  .js .reveal { opacity: 1; transform: none; }
+}

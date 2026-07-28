@@ -1,0 +1,5 @@
+# macOS
+.DS_Store
+
+# machine-local Claude Code permissions — absolute paths, not shareable
+.claude/settings.local.json
