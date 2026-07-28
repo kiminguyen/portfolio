@@ -5,9 +5,18 @@
   "use strict";
 
   /* Tells the stylesheet it's safe to hide .reveal elements, because
-     this script is alive and will reveal them again. Set first so a
-     later error can't leave the page blank. */
+     this script is alive and will reveal them again. Each page also sets
+     this inline in <head> so the class lands before the first paint —
+     setting it only here, at the end of <body>, meant the page painted
+     every section visible and then blanked them. Kept here too so the
+     class is right even if the inline block is ever dropped.
+
+     data-js-ready is what the inline safety timer watches: it takes the
+     class back off if this file never arrives, rather than leaving a
+     page of permanently invisible sections. Set first, so a later error
+     in this script can't strand the page either. */
   document.documentElement.classList.add("js");
+  document.documentElement.setAttribute("data-js-ready", "");
 
   var DATA = window.SITE || {};
   var TIKTOK = "https://www.tiktok.com/@kiminguyenn";
@@ -40,12 +49,20 @@
       var href = v.url || TIKTOK;
       var onIg = v.platform === "instagram";
       var label = onIg
-        ? "View on Instagram"
+        ? "Watch on IG"
         : (v.url ? "Watch on TikTok" : "View on TikTok");
+
+      /* Thumbnails are 9:16 frames cropped into a 9:10 box, so `cover`
+         trims roughly a fifth off the top and the same off the bottom.
+         `focus` overrides which slice survives when the default centre
+         cut lands on caption text burned into the frame. */
+      var focus = v.focus
+        ? ' style="object-position:' + esc(v.focus) + '"'
+        : "";
 
       /* no screenshot saved yet: show a gradient tile with the caption */
       var thumb = v.thumb
-        ? '<img src="' + esc(v.thumb) + '" alt="' + esc(v.title) + '" loading="lazy">'
+        ? '<img src="' + esc(v.thumb) + '" alt="' + esc(v.title) + '" loading="lazy"' + focus + ">"
         : '<span class="glyph" aria-hidden="true">' + (onIg ? "◎" : "▶") + "</span>" +
           '<span class="vthumb-cap">' + esc(v.title) + "</span>";
 
@@ -129,13 +146,43 @@
 
     var fills = ["surface", "surface", "surface", "surface"];
     host.innerHTML = col.products.map(function (p, i) {
+      /* a product with a `url` is a link out to the brand's own page;
+         one without stays an inert tile, so artwork can land before
+         someone has tracked the link down */
+      var open = p.url
+        ? '<a class="product ' + fills[i % fills.length] + '" href="' +
+            esc(p.url) + '" target="_blank" rel="noopener">'
+        : '<div class="product ' + fills[i % fills.length] + '">';
+
       return (
-        '<div class="product ' + fills[i % fills.length] + '">' +
+        open +
           '<img src="' + esc(p.img) + '" alt="' + esc(p.name) + '" loading="lazy">' +
           "<span>" + esc(p.name) + "</span>" +
-        "</div>"
+        (p.url ? "</a>" : "</div>")
       );
     }).join("");
+  }
+
+  /* One logo tile. A logo file that isn't there yet would render as a
+     broken-image icon; onerror drops the <img> and the tile shows the
+     name instead, so an entry can be added before its artwork is. */
+  function logoTile(b) {
+    return (
+      '<a class="logo" href="' + esc(b.url) + '" target="_blank" rel="noopener"' +
+        ' title="' + esc(b.name) + '" data-name="' + esc(b.name) + '">' +
+        '<img src="' + esc(b.logo) + '" alt="' + esc(b.name) + '" loading="lazy"' +
+          ' onerror="this.closest(\'.logo\').classList.add(\'is-missing\')">' +
+      "</a>"
+    );
+  }
+
+  /* --------------------------------------------- events I've been to
+     Same tiles as the brand wall, separate list — see the note in
+     content.js for why these aren't a brandGroup. */
+  function renderEventOrgs() {
+    var host = document.getElementById("event-orgs");
+    if (!host || !DATA.eventOrgs) return;
+    host.innerHTML = '<div class="logos">' + DATA.eventOrgs.map(logoTile).join("") + "</div>";
   }
 
   /* ---------------------------------------------------------- brands
@@ -150,17 +197,23 @@
       : DATA.brandGroups;
 
     host.innerHTML = groups.map(function (g) {
-      var logos = g.brands.map(function (b) {
-        return (
-          '<a class="logo" href="' + esc(b.url) + '" target="_blank" rel="noopener" title="' + esc(b.name) + '">' +
-            '<img src="' + esc(b.logo) + '" alt="' + esc(b.name) + '" loading="lazy">' +
-          "</a>"
-        );
-      }).join("");
+      /* `homeOnly` keeps a brand on the home wall — and in the count it
+         feeds — while hiding it from its group's own collection page,
+         for a partner whose videos live somewhere else on the site. */
+      var brands = only
+        ? g.brands.filter(function (b) { return !b.homeOnly; })
+        : g.brands;
+      var logos = brands.map(logoTile).join("");
 
+      /* The group heading only earns its place on the home page, where
+         both groups run together and it's what tells them apart. A
+         collection page is already showing one group under its own
+         section heading — naming it a second time is noise. */
       return (
         '<div class="brand-group">' +
-          "<h3>" + esc(g.label) + ' <span aria-hidden="true">' + esc(g.emoji || "") + "</span></h3>" +
+          (only
+            ? ""
+            : "<h3>" + esc(g.label) + ' <span aria-hidden="true">' + esc(g.emoji || "") + "</span></h3>") +
           '<div class="logos">' + logos + "</div>" +
         "</div>"
       );
@@ -191,6 +244,23 @@
       : role.slice(0, at) + link + role.slice(at + co.length);
   }
 
+  /* The name, linked to their LinkedIn when there's one on file. Same
+     escape-then-wrap order as roleHTML: a name without `linkedin` comes
+     back as plain escaped text. */
+  function nameHTML(t) {
+    var name = esc(t.name || "");
+    if (!t.linkedin) return name;
+
+    return (
+      '<a class="qli" href="' + esc(t.linkedin) + '" target="_blank" rel="noopener"' +
+        ' aria-label="' + name + ' on LinkedIn">' + name +
+        '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+        '<path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM3 9h4v12H3zM9 9h3.8v1.7h.05c.53-.95 1.83-1.95 3.76-1.95 4.02 0 4.76 2.5 4.76 5.76V21h-4v-5.6c0-1.34-.03-3.06-1.9-3.06-1.9 0-2.2 1.45-2.2 2.96V21H9z"/>' +
+        "</svg>" +
+      "</a>"
+    );
+  }
+
   /* ------------------------------------- both testimonials, side by side */
   function renderQuotePair() {
     var host = document.querySelector("[data-quotes]");
@@ -201,7 +271,7 @@
         '<figure class="panel">' + esc(t.quote) +
           '<figcaption class="who">' +
             (t.photo ? '<img src="' + esc(t.photo) + '" alt="" loading="lazy">' : "") +
-            "<div><b>" + esc(t.name) + "</b><span>" + roleHTML(t) + "</span></div>" +
+            "<div><b>" + nameHTML(t) + "</b><span>" + roleHTML(t) + "</span></div>" +
           "</figcaption>" +
         "</figure>"
       );
@@ -220,7 +290,7 @@
           '<div class="panel">' + esc(t.quote) +
             '<div class="who">' +
               (t.photo ? '<img src="' + esc(t.photo) + '" alt="" loading="lazy">' : "") +
-              "<div><b>" + esc(t.name) + "</b><span>" + roleHTML(t) + "</span></div>" +
+              "<div><b>" + nameHTML(t) + "</b><span>" + roleHTML(t) + "</span></div>" +
             "</div>" +
           "</div>" +
         "</figure>"
@@ -362,6 +432,10 @@
         s.ty += (dy - s.ty) * ease;
         s.el.style.transform = "translate(" + s.tx.toFixed(2) + "px," + s.ty.toFixed(2) + "px)";
       }
+      /* Stop once the hero has been swapped out from under us. Without
+         this, every trip back to the home page would start another loop
+         animating a detached set of bubbles forever. */
+      if (!document.contains(lander)) return;
       requestAnimationFrame(frame);
     })();
   }
@@ -370,6 +444,11 @@
      One pill for the whole bar, moved to whichever link is hovered, so
      it appears to slide between them. It rests on the current page's
      link where there is one, and fades out otherwise. */
+  /* set by initNavPill; the router calls it to slide the pill onto the
+     page it just swapped in. A no-op until then, and on any page that
+     has no nav bar. */
+  var navPillRest = function () {};
+
   function initNavPill() {
     var nav = document.querySelector(".nav");
     var pill = nav && nav.querySelector(".nav-pill");
@@ -378,7 +457,11 @@
     var links = [].slice.call(nav.querySelectorAll(".nav-links a"));
     if (!links.length) return;
 
-    var home = nav.querySelector('.nav-links a[aria-current="page"]');
+    /* Looked up each time rather than captured once: the router moves
+       aria-current when it swaps a page in, and the pill has to rest on
+       whichever link is current now, not the one that was current when
+       this ran. */
+    function home() { return nav.querySelector('.nav-links a[aria-current="page"]'); }
     var at = null;
 
     /* measured from rects, not offsetLeft: .nav-links carries a z-index,
@@ -405,16 +488,19 @@
       a.addEventListener("pointerenter", function () { moveTo(a, true); });
       a.addEventListener("focus", function () { moveTo(a, true); });
     });
-    nav.addEventListener("pointerleave", function () { moveTo(home, true); });
+    nav.addEventListener("pointerleave", function () { moveTo(home(), true); });
     nav.addEventListener("focusout", function (e) {
-      if (!nav.contains(e.relatedTarget)) moveTo(home, true);
+      if (!nav.contains(e.relatedTarget)) moveTo(home(), true);
     });
 
     /* the bar's width changes with the viewport, so re-measure without
        animating — otherwise the pill slides around during a resize */
     addEventListener("resize", function () { moveTo(at, false); }, { passive: true });
 
-    moveTo(home, false);
+    moveTo(home(), false);
+
+    /* the router calls this after moving aria-current */
+    navPillRest = function () { moveTo(home(), true); };
   }
 
   /* ------------------------------------------ the soap-bubble layer
@@ -487,6 +573,29 @@
     function wanderX() { return Math.random() * 34 - 17; }
     function wanderY() { return -38 - Math.random() * 34; }
 
+    /* Below this the rim and the fill have no room and it stops reading as
+       a bubble — it's just a dot. Every size goes through squeeze(), so
+       neither the trim nor the held-down state can push under it. */
+    var MIN = 2.8;
+    var HELD = 0.62;
+    var down = false;
+
+    function squeeze(px) {
+      return Math.max(MIN, down ? px * HELD : px);
+    }
+
+    addEventListener("pointerdown", function (e) {
+      if (e.pointerType && e.pointerType !== "mouse") return;
+      down = true;
+    }, { passive: true });
+
+    function release() { down = false; }
+    addEventListener("pointerup", release, { passive: true });
+    addEventListener("pointercancel", release, { passive: true });
+    /* letting go outside the window never fires pointerup in here, and the
+       trail would stay stuck fine until the next click */
+    addEventListener("blur", release);
+
     addEventListener("pointermove", function (e) {
       if (e.pointerType && e.pointerType !== "mouse") return;
       if (lastX === null) { lastX = e.clientX; lastY = e.clientY; return; }
@@ -497,17 +606,15 @@
 
       /* one bubble reads as a dot following the pointer; a cluster of one
          bigger and two much smaller ones reads as soap. The little ones are
-         scattered off the pointer and run shorter, so they thin out first.
-         The small range bottoms out at 2.8px rather than lower — below that
-         the rim and the fill have no room and it stops reading as a bubble. */
-      pop(e.clientX, e.clientY, 5 + Math.random() * 7, 1.5 + Math.random() * 1.1,
-          wanderX(), wanderY());
+         scattered off the pointer and run shorter, so they thin out first. */
+      pop(e.clientX, e.clientY, squeeze(4 + Math.random() * 5),
+          1.5 + Math.random() * 1.1, wanderX(), wanderY());
 
       var tiny = 1 + (Math.random() < 0.65 ? 1 : 0);
       for (var i = 0; i < tiny; i++) {
         pop(e.clientX + (Math.random() * 28 - 14),
             e.clientY + (Math.random() * 24 - 12),
-            2.8 + Math.random() * 2.8,
+            squeeze(2.8 + Math.random() * 1.8),
             1.0 + Math.random() * 0.8,
             wanderX(), wanderY());
       }
@@ -596,9 +703,20 @@
         "position:absolute;left:0;width:1px;height:1px;pointer-events:none;" +
         "top:calc(100% - 96px)";
       lander.appendChild(sentinel);
-      new IntersectionObserver(function (entries) {
+      var io = new IntersectionObserver(function (entries) {
         set(!entries[0].isIntersecting && entries[0].boundingClientRect.top < 0);
-      }, { threshold: 0 }).observe(sentinel);
+      }, { threshold: 0 });
+      io.observe(sentinel);
+
+      /* Must be disconnected when this page is swapped away, not merely
+         left to the sentinel being removed with it. Taking an observed
+         element out of the document counts as a change: the observer
+         fires once more, reporting not-intersecting with a zeroed rect,
+         which reads as "the hero is still on screen" and strips
+         is-scrolled — off the nav belonging to the page that just
+         arrived. The bar then sits in its over-the-photo state, white
+         mark and white links, on a page that has no photo. */
+      onUnmount(function () { io.disconnect(); sentinel.remove(); });
     }
 
     /* belt and braces, and it covers the very first paint */
@@ -606,6 +724,14 @@
     sync();
     addEventListener("scroll", sync, { passive: true });
     addEventListener("resize", sync);
+
+    /* these outlive the lander they measure, so the router drops them
+       when it swaps this page out — otherwise every visit to the home
+       page would leave another pair behind */
+    onUnmount(function () {
+      removeEventListener("scroll", sync);
+      removeEventListener("resize", sync);
+    });
   }
 
   /* ------------------------------------ in-page jumps, minus the hash
@@ -681,6 +807,20 @@
 
     if (!("IntersectionObserver" in window)) { showAll(); return; }
 
+    /* Whatever is already on screen when the page opens is shown outright,
+       not animated. This runs before the first paint, so those sections go
+       straight to their final style and no transition ever starts — you
+       land on a finished page instead of watching its top half fade in,
+       which on a fresh navigation just reads as the page still loading.
+       The observer takes over from the fold down, where a reveal is
+       something you scroll into rather than arrive at. */
+    var fold = window.innerHeight;
+    var below = [];
+    items.forEach(function (el) {
+      if (el.getBoundingClientRect().top < fold) el.classList.add("in");
+      else below.push(el);
+    });
+
     var io = new IntersectionObserver(function (entries) {
       entries.forEach(function (e) {
         if (e.isIntersecting) {
@@ -690,30 +830,167 @@
       });
     }, { rootMargin: "0px 0px -8% 0px", threshold: 0.06 });
 
-    items.forEach(function (el) { io.observe(el); });
+    below.forEach(function (el) { io.observe(el); });
 
     /* Insurance: if the observer somehow never fires, don't leave the
        page invisible. Losing the animation beats losing the content. */
     setTimeout(showAll, 5000);
   }
 
-  /* ------------------------------------------------------ init */
-  renderVideos();
-  renderProducts();
-  renderBrands();
-  renderQuotes();
-  renderQuotePair();
-  renderHashtags();
-  renderStats();
-  initNav();
-  initNavPill();
-  initBubbles();
-  initCursorBubbles();
-  initPortraitBurst();
-  initQuietAnchors();
-  fillCounts();
-  initReveal();
+  /* --------------------------------------------- mount / unmount
+     Everything that has to run again each time a page is swapped in.
+     The nav bar and the cursor trail are deliberately not in here —
+     they survive a swap untouched, so they're wired up once. */
+  var unmounts = [];
+  function onUnmount(fn) { unmounts.push(fn); }
+  function unmountPage() {
+    unmounts.forEach(function (fn) { try { fn(); } catch (e) {} });
+    unmounts = [];
+  }
 
-  var year = document.getElementById("year");
-  if (year) year.textContent = new Date().getFullYear();
+  function mountPage() {
+    renderVideos();
+    renderProducts();
+    renderBrands();
+    renderEventOrgs();
+    renderQuotes();
+    renderQuotePair();
+    renderHashtags();
+    renderStats();
+    initNav();
+    initBubbles();
+    initPortraitBurst();
+    initQuietAnchors();
+    fillCounts();
+    initReveal();
+
+    var year = document.getElementById("year");
+    if (year) year.textContent = new Date().getFullYear();
+  }
+
+  /* --------------------------------------- navigating between pages
+     Each page is its own document, so an ordinary click tears the whole
+     thing down and builds the next one from scratch. The gap in the
+     middle is the white flash, and no amount of CSS on either page
+     closes it, because for a moment neither page is on screen.
+
+     So the click is taken over: fetch the next page, lift out the part
+     that differs, and put it in place. The document never goes away, so
+     there is nothing to flash — the nav bar and the background wash
+     aren't even touched. Where the browser has same-document view
+     transitions (far more widely supported than the cross-document
+     kind) the swap is handed to one and cross-fades.
+
+     Every link stays a real <a href>. Anything unusual — a modified
+     click, another origin, a download, a failed fetch — is handed back
+     to the browser, and with JS off the site navigates exactly as it
+     always did. */
+  function initRouter() {
+    var shell = document.querySelector(".nav-shell");
+    if (!shell || !window.history || !window.fetch || !window.DOMParser) return;
+
+    /* the swappable region: everything after the nav bar, up to the
+       scripts at the end of <body> */
+    function region(root) {
+      var nav = root.querySelector(".nav-shell");
+      var out = [], n = nav && nav.nextElementSibling;
+      while (n && n.tagName !== "SCRIPT") { out.push(n); n = n.nextElementSibling; }
+      return out;
+    }
+
+    function apply(doc, url) {
+      var incoming = region(doc);
+      if (!incoming.length) return false;
+
+      unmountPage();
+      region(document).forEach(function (el) { el.remove(); });
+
+      var anchor = shell;
+      incoming.forEach(function (el) {
+        anchor.parentNode.insertBefore(document.importNode(el, true), anchor.nextSibling);
+        anchor = anchor.nextSibling;
+      });
+
+      document.title = doc.title;
+      var key = doc.body.getAttribute("data-collection");
+      if (key) document.body.setAttribute("data-collection", key);
+      else document.body.removeAttribute("data-collection");
+
+      /* the nav lives outside the swap, so its current-page marker has
+         to be moved by hand */
+      var path = new URL(url, location.href).pathname;
+      shell.querySelectorAll(".nav-links a").forEach(function (a) {
+        if (new URL(a.href).pathname === path) a.setAttribute("aria-current", "page");
+        else a.removeAttribute("aria-current");
+      });
+
+      scrollTo(0, 0);
+      mountPage();
+      navPillRest();
+      return true;
+    }
+
+    var loading = false;
+
+    function go(url, push) {
+      if (loading) return;
+      loading = true;
+      fetch(url, { credentials: "same-origin" })
+        .then(function (r) {
+          if (!r.ok) throw new Error(r.status);
+          return r.text();
+        })
+        .then(function (html) {
+          var doc = new DOMParser().parseFromString(html, "text/html");
+          /* Deliberately not wrapped in document.startViewTransition.
+             A view transition snapshots the whole page including the nav
+             bar, and the bar legitimately looks different from one page
+             to the next — white mark over the hero photo on the home
+             page, dark mark on a light bar everywhere else. Dissolving
+             one into the other washes it out and reads as the bar
+             vanishing, which is the very thing this router exists to
+             stop. Naming the bar to hold it out of the fade is worse:
+             it's frosted glass, and a snapshot has no backdrop for the
+             blur to sample, so it comes out a near-transparent sliver.
+
+             The swap is instant instead. Nothing flashes, because the
+             document was never torn down — and the sections fading in
+             under .reveal already give the new page a sense of arriving. */
+          if (!apply(doc, url)) throw new Error("unrecognised page");
+          if (push) history.pushState({ router: true }, "", url);
+        })
+        .catch(function () { location.href = url; })
+        .then(function () { loading = false; });
+    }
+
+    document.addEventListener("click", function (e) {
+      if (e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+
+      var a = e.target.closest && e.target.closest("a[href]");
+      if (!a || a.target || a.hasAttribute("download")) return;
+
+      var url;
+      try { url = new URL(a.href); } catch (err) { return; }
+      if (url.origin !== location.origin) return;          /* off-site */
+      if (url.hash && url.pathname === location.pathname) return;  /* in-page jump */
+      if (url.pathname === location.pathname) return;      /* already here */
+
+      e.preventDefault();
+      go(url.pathname + url.search, true);
+    });
+
+    addEventListener("popstate", function () {
+      go(location.pathname + location.search, false);
+    });
+
+    /* so the first entry can be returned to by Back */
+    history.replaceState({ router: true }, "", location.href);
+  }
+
+  /* ------------------------------------------------------ init */
+  initNavPill();
+  initCursorBubbles();
+  initRouter();
+  mountPage();
 })();

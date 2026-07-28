@@ -28,11 +28,18 @@
   animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-/* The nav is on every page and lands in the same spot. Naming it takes
-   it out of the whole-page fade and animates it as its own thing, so it
-   holds still while the content underneath changes — the difference
-   between "the site moved" and "the page reloaded". */
-.nav-shell { view-transition-name: nav; }
+/* The nav is deliberately NOT given a view-transition-name, tempting as
+   it looks: it's on every page in the same spot, so naming it ought to
+   hold it still while the content changes.
+
+   It can't. `.nav` is frosted glass — 10% white with a blur behind it —
+   so nearly all of what you see is the backdrop it samples, not its own
+   paint. A named element is snapshotted on its own, with no backdrop to
+   sample, and backdrop-filter contributes nothing: the bar renders as a
+   near-transparent sliver and reads as washing out and disappearing.
+
+   Unnamed, it rides along in the root snapshot, where it's composited
+   over the page it actually sits on and looks like itself. */
 
 @media (prefers-reduced-motion: reduce) {
   /* !important to beat the UA's own animations on these pseudo-elements */
@@ -542,7 +549,6 @@ h1, h2, h3, h4 {
   color: #fff;
   transition: color 0.2s, opacity 0.2s;
 }
-.nav-cta { color: #3f6068; }
 .nav-mark {
   justify-self: start;
   display: inline-flex;
@@ -555,6 +561,10 @@ h1, h2, h3, h4 {
      filled pills, so it gets nudged. One number, tune it here. */
   --mark-nudge: 5px;
   transform: translateY(var(--mark-nudge));
+  /* re-stated rather than inherited from the .nav-mark/.nav-links/.nav-socials
+     group above: setting transition here replaces that shorthand outright,
+     so colour and opacity have to come along or they'd start snapping */
+  transition: color 0.2s, opacity 0.2s, transform 0.28s var(--ease);
 }
 /* two files rather than a filter: white over the hero photo, black once
    the nav flips to its ink state */
@@ -562,7 +572,24 @@ h1, h2, h3, h4 {
 .nav-mark .mark-dark { display: none; }
 .nav-shell.is-scrolled .mark-light { display: none; }
 .nav-shell.is-scrolled .mark-dark  { display: block; }
-.nav-mark:hover { opacity: 0.78; }
+/* A dim on its own was too easy to miss, so the mark lifts and grows a
+   little instead — the same lift-on-hover the buttons and social chips
+   use, just gentler. The translateY has to be repeated here: a bare
+   scale() would replace the whole transform and the optical nudge would
+   snap away, dropping the logo 5px the moment the cursor arrived. */
+.nav-mark:hover {
+  opacity: 1;
+  transform: translateY(calc(var(--mark-nudge) - 1px)) scale(1.07);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-mark { transition: color 0.2s, opacity 0.2s; }
+  /* back to the plain dim — still a hover signal, just no movement */
+  .nav-mark:hover {
+    opacity: 0.78;
+    transform: translateY(var(--mark-nudge));
+  }
+}
 
 .nav-links { display: flex; align-items: center; gap: 2px; list-style: none; margin: 0; padding: 0; }
 .nav-links > li { position: relative; }
@@ -616,7 +643,12 @@ h1, h2, h3, h4 {
 .nav-menu a:hover { background: rgba(255, 255, 255, 0.22); opacity: 1; }
 
 /* minimal icon row, same marks as the footer */
-.nav-socials { display: flex; align-items: center; gap: 2px; }
+/* Pulled out by half the gap between an icon's 32px hit circle and its
+   17px glyph. Flush by box, the last glyph still sat 7.5px short of the
+   content edge while the logo's ink is flush against it — so the row
+   looked lopsided. The circles now overhang the content edge slightly,
+   which costs nothing: the row's own 22px padding still contains them. */
+.nav-socials { display: flex; align-items: center; gap: 2px; margin-right: -7.5px; }
 .nav-socials a {
   display: grid;
   place-items: center;
@@ -629,21 +661,6 @@ h1, h2, h3, h4 {
 .nav-socials svg { width: 17px; height: 17px; }
 .nav-socials a:hover { background: rgba(255, 255, 255, 0.16); }
 
-/* Contact: solid white pill, type in the hero's own teal. The photo's
-   teal is about #567e84, which is 4.46:1 on white — just under — so the
-   type uses #3f6068, the same hue two steps down, at 6.8:1. */
-.nav-cta {
-  padding: 9px 18px;
-  border-radius: 999px;
-  font-size: 14.5px;
-  font-weight: 700;
-  white-space: nowrap;
-  background: #fff;
-  border: 1px solid #fff;
-  box-shadow: 0 2px 4px rgba(20, 30, 34, 0.12), 0 10px 22px -10px rgba(20, 30, 34, 0.4);
-  transition: background 0.2s, transform 0.2s var(--ease), box-shadow 0.2s;
-}
-.nav-cta:hover { transform: translateY(-1px); box-shadow: 0 3px 6px rgba(20,30,34,.14), 0 14px 28px -10px rgba(20,30,34,.45); }
 
 /* ---- scrolled past the lander: the photo is gone, so flip to ink ----
    JS adds .is-scrolled. Without JS the nav stays in its white state,
@@ -667,11 +684,6 @@ h1, h2, h3, h4 {
   background: linear-gradient(rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
 }
 .nav-shell.is-scrolled .nav-socials a:hover { background: rgba(35, 37, 43, 0.08); }
-/* over the light page the white pill needs an edge to be a pill at all */
-.nav-shell.is-scrolled .nav-cta {
-  border-color: rgba(35, 37, 43, 0.14);
-  box-shadow: 0 1px 2px rgba(35, 37, 43, 0.05), 0 8px 18px -10px rgba(52, 46, 60, 0.3);
-}
 .nav-shell.is-scrolled .nav-menu {
   background: rgba(255, 255, 255, 0.9);
   border-color: rgba(255, 255, 255, 0.95);
@@ -855,7 +867,9 @@ h1, h2, h3, h4 {
   font-size: clamp(30px, 3.9vw, 50px);
   line-height: 1.08;
   letter-spacing: -0.024em;
-  max-width: 31ch;   /* keeps "Content that stops the scroll." on one line */
+  /* holds the longest line, "Welcome to my portfolio.", on one line while
+     keeping the text clear of the portrait orbit on the right */
+  max-width: 31ch;
   color: #fff;
 }
 .lander h1 span {
@@ -1425,6 +1439,25 @@ a.b:hover .mini img:nth-child(3) { transform: rotate(11deg) translateY(-4px); }
 .qco:hover,
 .qco:focus-visible { border-bottom-color: var(--hover); }
 
+/* the name, linked to their LinkedIn. The name is the primary text on
+   the line, so it keeps --ink rather than going teal like the company —
+   the small LinkedIn mark carries the affordance, and the underline
+   only shows on hover. */
+.qli {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s, color 0.2s;
+}
+.qli svg { width: 10px; height: 10px; flex: none; color: var(--muted); transition: color 0.2s; }
+.qli:hover,
+.qli:focus-visible { border-bottom-color: currentColor; }
+.qli:hover svg,
+.qli:focus-visible svg { color: var(--hover); }
+
 /* =============================================================
    Collection pages
    ============================================================= */
@@ -1457,7 +1490,31 @@ a.b:hover .mini img:nth-child(3) { transform: rotate(11deg) translateY(-4px); }
    the plain card rather than to bare white.
 
    If you swap a photo, re-solve the veil — a darker image needs more. */
-.art-head { background-size: cover, cover, cover; }
+.art-head { background-size: cover, cover, cover; position: relative; }
+
+/* The artwork gets softened on a ::before rather than on the card itself.
+   filter: blur() on .art-head would take the heading and copy with it —
+   the property applies to the whole element, text included.
+
+   background-image: inherit picks up whichever --career/--beauty/--events
+   stack is in play, including the responsive swaps below, so the blur
+   follows the artwork instead of being restated three times.
+
+   The inset overscans the box: blur samples past its own edges, and
+   without the overscan the rim would fade to transparent and show a soft
+   halo. .page-head is overflow:hidden, so the extra is clipped. */
+.art-head::before {
+  content: "";
+  position: absolute;
+  inset: -30px;
+  z-index: 0;
+  background-image: inherit;
+  background-position: inherit;
+  background-size: cover, cover, cover;
+  filter: blur(8px);
+}
+/* lift the real content over the blurred copy */
+.art-head > * { position: relative; z-index: 1; }
 
 /* darkest in the text column rgb(81,146,164) -> 0.49 gives 4.61:1 */
 .art-head--career {
@@ -1542,6 +1599,38 @@ a.b:hover .mini img:nth-child(3) { transform: rotate(11deg) translateY(-4px); }
 }
 .back:hover { color: var(--hover); }
 .back svg { width: 14px; height: 14px; }
+
+/* "All work" on the left, socials on the right. A flex row rather than
+   absolute placement so the icons can't ride over the title once the
+   header narrows — they just travel in with the padding. */
+.head-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.head-top .back { margin-bottom: 0; }   /* the row carries it now */
+
+/* Glass, the way the collab block does it. The veil over the artwork
+   thins towards the right edge — 0.27 against 0.49 in the text column —
+   which is exactly where these sit, so a flat chip would be resting on
+   the busiest part of the photo.
+
+   Doubled up as .socials.head-socials because the plain .socials a rules
+   further down the file match at the same specificity, and being later
+   they would otherwise win on source order alone. */
+.socials.head-socials a {
+  width: 34px;
+  height: 34px;
+  background: rgba(255, 255, 255, 0.62);
+  border-color: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+}
+.socials.head-socials a:hover { background: #fff; color: var(--hover); }
+.socials.head-socials svg { width: 16px; height: 16px; }
 
 /* video grid */
 .videos {
@@ -1731,6 +1820,10 @@ a.b:hover .mini img:nth-child(3) { transform: rotate(11deg) translateY(-4px); }
   transition: transform 0.4s var(--ease);
 }
 .product span { font-size: 12.5px; font-weight: 700; color: var(--ink-soft); line-height: 1.4; }
+/* the linked tiles are <a>; the lift and halo already read as clickable,
+   so strip the underline and keep the caption its own colour */
+a.product { text-decoration: none; color: inherit; }
+a.product:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 
 .product:hover { transform: translateY(-5px); background: #fff; box-shadow: var(--shadow-md); }
 .product:hover::before { opacity: 1; transform: translate(-50%, -50%) scale(1); }
@@ -1756,6 +1849,19 @@ a.b:hover .mini img:nth-child(3) { transform: rotate(11deg) translateY(-4px); }
 .brand-group h3 { display: flex; align-items: center; gap: 9px; font-size: 18px; margin-bottom: 14px; }
 
 .logos { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+
+/* no artwork on file yet — the tile wears the company name instead of a
+   broken-image icon. main.js sets .is-missing from the <img> onerror. */
+.logo.is-missing img { display: none; }
+.logo.is-missing::after {
+  content: attr(data-name);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  color: var(--ink);   /* --ink-soft is 4.1:1 on this near-white tile */
+}
 .logo {
   display: grid;
   place-items: center;
@@ -1784,16 +1890,54 @@ a.b:hover .mini img:nth-child(3) { transform: rotate(11deg) translateY(-4px); }
   filter: saturate(0.08) opacity(0.7);
   transition: filter 0.3s;
 }
-/* the three square marks read visually larger at the same height, so
-   they get a slightly tighter cap */
+/* the square marks read visually larger at the same height, so they get
+   a slightly tighter cap */
 .logo img[alt="Wealthsimple Foundation"],
 .logo img[alt="Blossom Social"],
 .logo img[alt="Auralyze"] { max-height: 27px; }
+/* Akatos is square too, but it's an app-icon lockup with ~22% of clear
+   field baked in on every side — the boat itself is only 55% of the file.
+   At the square cap the visible mark came out 15px against the ~21px the
+   wordmarks carry, so it needs the extra height to weigh the same. */
+.logo img[alt="Akatos"] { max-height: 36px; }
 /* these two were reading small at the shared cap: NACIFIC is a very wide
    wordmark so it's width-bound, K-SECRET is squarer so it's height-bound */
 .logo img[alt="NACIFIC"]  { max-width: 108px; max-height: 30px; }
 .logo img[alt="K-SECRET"] { max-height: 44px; }
 .logo img[alt="Tomo AI"]  { max-height: 26px; }
+/* 7.5:1 and lightly tracked, so the shared 92px cap left it 12px tall and
+   visibly frailer than its neighbours. 112px is the widest that still
+   clears the 18px padding in a 150px column. */
+.logo img[alt="AXIS-Y"]   { max-width: 112px; }
+/* All three are wide wordmarks (3.5:1 to 4.2:1), so width binds, not
+   height, and the shared 92px cap left them noticeably lighter than their
+   neighbours. 108px is the widest that still clears the 18px padding.
+
+   Jobright needed more than a cap: its file was 1800x944 with the mark
+   occupying only 1200x300 of that — 32% of the canvas height was baked-in
+   white margin, so the 32px height cap was mostly being spent on nothing
+   and the mark itself drew about 10px tall. All three have since been
+   trimmed to their ink and had the white knocked out to transparency, so
+   don't re-export them with padding. */
+.logo img[alt="Intern Insider"],
+.logo img[alt="Predis AI"],
+.logo img[alt="Jobright"] { max-width: 108px; max-height: 34px; }
+
+/* --- events wall ---------------------------------------------
+   These came off the organisations' own sites, so their proportions are
+   all over the place — 0.39:1 for the Hack the 6ix icon up to 9.7:1 for
+   the Toronto Tech Week wordmark, which is why they need their own caps
+   rather than the shared 92x32 one.
+
+   The side padding is trimmed here (and only here) to widen the content
+   box from 116x50 to 128x54: the wordmarks are width-bound, so at the
+   standard padding there was simply nowhere left for them to grow. */
+#event-orgs .logo { padding: 16px 12px; }
+#event-orgs .logo img { max-height: 46px; max-width: 126px; }
+/* left alone deliberately — Kimi asked for every logo here to grow
+   except this one. It's a tall narrow icon, so height is its binding
+   dimension and 44px is what it was already drawing at. */
+#event-orgs .logo img[alt="Hack the 6ix"] { max-height: 44px; }
 .logo:hover img { filter: none; }
 
 /* =============================================================
@@ -1956,41 +2100,88 @@ a.b:hover .mini img:nth-child(3) { transform: rotate(11deg) translateY(-4px); }
 /* =============================================================
    Footer
    ============================================================= */
-/* Back to top — chevron stacked over the label rather than beside it, so
-   it reads as a direction; the page has enough pill-shaped chrome as it
-   is. Grey and quiet on purpose: it sits under every page's last real
-   content and shouldn't compete with the footer links. */
+/* Back to top — one of the footer's own row items, so it sits on the
+   copyright's line. Chevron beside the label rather than above it, since
+   a stacked one would make this item two lines tall and there'd be
+   nothing to align to. Size and colour are inherited from .foot, which
+   is what keeps it flush with the copyright rather than approximately
+   near it. */
 .to-top {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
   align-items: center;
-  gap: 2px;
-  width: fit-content;
-  margin: 0 auto;
-  padding: 10px 16px 4px;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 500;
-  transition: color 0.2s var(--ease), transform 0.25s var(--ease);
+  gap: 6px;
 }
-.to-top svg { width: 20px; height: 20px; display: block; }
-.to-top:hover { color: var(--hover); transform: translateY(-3px); }
+.to-top svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+  /* it's a flex item, so it would otherwise shrink below 15px when the
+     footer runs out of room and the chevron would come out squashed */
+  flex: none;
+  transition: transform 0.25s var(--ease);
+}
+/* the chevron lifts on hover, not the whole link — moving the text would
+   shift the footer line it's aligned to. Colour is already handled by
+   .foot a:hover. */
+.to-top:hover svg { transform: translateY(-2px); }
 
 @media (prefers-reduced-motion: reduce) {
-  .to-top { transition: color 0.2s; }
-  .to-top:hover { transform: none; }
+  .to-top svg { transition: none; }
+  .to-top:hover svg { transform: none; }
 }
 
 .foot {
-  padding: 30px 0 44px;
+  /* the 44px that used to close out the page now lives on .webring, which
+     follows this row — otherwise the gap landed above the badge and the
+     badge sat flush against the bottom of the page */
+  padding: 30px 0 14px;
   display: flex;
   justify-content: space-between;
+  /* centred, not stretched: "Back to top" carries a 15px chevron and the
+     other items are plain text, so without this the taller item would
+     leave the copyright sitting off its line */
+  align-items: center;
   gap: 14px;
   flex-wrap: wrap;
   color: var(--muted);
   font-size: 13px;
 }
+/* Three-item footer: space-between only centres the middle item when the
+   outer two happen to match in width, and the copyright runs ~100px wider
+   than the page link — enough to push "Back to top" visibly off centre.
+   Letting the outer two share the slack equally centres it for real.
+   Scoped with :has() so the home page, which has no middle item, keeps
+   its plain left/right split, and held above the phone breakpoint: a
+   growable basis makes the three items shrink onto one cramped line
+   instead of wrapping to two, which is what they should do down there. */
+@media (min-width: 561px) {
+  .foot:has(> :nth-child(3)) > :first-child,
+  .foot:has(> :nth-child(3)) > :last-child { flex: 1 1 0; }
+  .foot:has(> :nth-child(3)) > :last-child { text-align: right; }
+}
 .foot a:hover { color: var(--hover); }
+
+/* webring.ca badge. .foot is a space-between row that already wraps, so a
+   100% basis is enough to push this onto a line of its own underneath the
+   copyright and Back to top — no ordering hacks, and it can't get wedged
+   between them however many items a page's footer has (the collection
+   pages carry a next-page link too).
+   It draws its own inline arrows and leaf, so it only needs a size, the
+   footer's own colour, and the site's teal for hover. */
+/* Sits below the whole footer row as its own centred line, so it can't
+   collide with Back to top however many items a page's footer carries.
+   .foot gives up most of its bottom padding to this element — see there. */
+.webring {
+  display: flex;
+  justify-content: center;
+  padding-bottom: 40px;
+  color: var(--muted);
+  font-size: 13px;
+  --webring-size: 15px;
+  --webring-color: currentColor;
+  --webring-accent: var(--hover);
+}
+.webring a { text-decoration: none; }
 
 /* =============================================================
    Scroll reveal
@@ -2009,7 +2200,9 @@ a.b:hover .mini img:nth-child(3) { transform: rotate(11deg) translateY(-4px); }
    ============================================================= */
 @media (max-width: 1000px) {
   .bento { grid-auto-rows: minmax(190px, auto); }
-  .lander h1 { max-width: 15ch; }
+  /* 15ch was cut to fit "I make content." exactly; the line is longer now
+     and that cap broke it in two. Still well clear of the orbit's edge. */
+  .lander h1 { max-width: 20ch; }
   .lander-orbit { width: clamp(170px, 24vw, 240px); }
   .b--hero { padding-right: 224px; }
   .b--hero h2 { font-size: clamp(28px, 4.2vw, 36px); }
