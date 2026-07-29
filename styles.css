@@ -1469,6 +1469,20 @@ a.b:hover .mini img:nth-child(3) { transform: rotate(11deg) translateY(-4px); }
   color: var(--ink-soft);
   transition: transform 0.32s var(--ease), box-shadow 0.32s var(--ease),
               background 0.32s var(--ease);
+  /* The grid already stretches both panels to the taller one's height —
+     the column is what lets the attribution find that extra space. Without
+     it the name follows straight after the quote, so the shorter of the
+     two testimonials sits its byline higher than its neighbour's, and the
+     mismatch moves every time the column width changes the line count. */
+  display: flex;
+  flex-direction: column;
+}
+/* auto rather than a fixed gap: it eats whatever slack the panel has, and
+   collapses to nothing on the panel that sets the height. padding keeps
+   the breathing room there, where the margin has none left to give. */
+.b--full.b--quote .who {
+  margin-top: auto;
+  padding-top: 11px;
 }
 /* each recommendation lifts on its own */
 .b--full.b--quote .panel:hover {
@@ -2087,6 +2101,34 @@ a.product:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 .plain-head,
 .plain-intro,
 .build-stats { position: relative; z-index: 1; }
+
+/* Source link under the intro. inline-flex so the box stops at the text
+   instead of running the full column — a full-width hit area on a lone
+   line reads as a broken button.
+
+   Same z-index treatment as .build-stats: the cat is z-index 0 with
+   pointer-events off, so it can't actually swallow the click, but the
+   link keeps its own layer so it can never end up painted under the
+   artwork as the column narrows toward the 900px cutoff. */
+.source-link {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.source-link svg { width: 17px; height: 17px; flex: none; }
+/* the underline goes on the label, not the anchor — on the flex box it
+   would run under the mark as well and read as a strikethrough on it */
+.source-link span { border-bottom: 1px solid transparent; transition: border-color 0.2s; }
+.source-link:hover { color: var(--hover); }
+.source-link:hover span { border-bottom-color: currentColor; }
 
 /* Under ~900px the copy has grown to the full column width and there's
    no empty corner left to put it in. */
