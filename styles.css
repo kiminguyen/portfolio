@@ -2213,7 +2213,9 @@ a.product:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
   height: auto;
   object-fit: contain;
   /* the brand wall's treatment, so tool marks and partner logos read as
-     the same species of thing — lifted on hover, below */
+     the same species of thing — lifted on hover, below. The transition
+     matters most for the multicolour marks: snapping five brand colours
+     on at once reads as a glitch, fading them in reads as a response. */
   filter: saturate(0.08) opacity(0.7);
   transition: filter 0.28s var(--ease);
 }
@@ -2222,9 +2224,6 @@ a.product:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
    to hit, and the row is already the unit you read. */
 .tool:hover .tool-mark img,
 .tool:focus-within .tool-mark img { filter: none; }
-/* Opted out of the muting and shown in full colour at rest. The hover
-   rule above still matches it, it just has nothing left to change. */
-.tool-mark--colour img { filter: none; }
 .tool-mark.is-missing img { display: none; }
 .tool-name {
   font-size: 15.5px;
