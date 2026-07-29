@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How I Built This Site — Kimi Nguyen</title>
+<meta name="description" content="The colophon for kiminguyen.com — what each tool was used for, and what the site is made of. Hand-coded HTML, CSS and JavaScript, hosted on Vercel.">
+<meta property="og:title" content="How I Built This Site — Kimi Nguyen">
+<meta property="og:description" content="What I used, and for what. Hand-coded — no website builder, no template.">
+<meta property="og:site_name" content="Kimi Nguyen">
+<meta property="og:url" content="https://www.kiminguyen.com/built">
+<!-- absolute, and on www: a relative og:image is dropped by most scrapers,
+     and the apex 301s to www, which not all of them follow -->
+<meta property="og:image" content="https://www.kiminguyen.com/assets/photos/kimi-desk.jpg">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="stylesheet" href="styles.css">
+
+<!-- Set before the first paint, not at the end of <body> where main.js
+     lands. Without this the browser paints every .reveal section at full
+     opacity, main.js arrives and blanks them, and the observer fades them
+     back — and that double take is the white flash between pages. -->
+<script>
+  document.documentElement.classList.add("js");
+  /* main.js stamps data-js-ready as soon as it's alive. If it never
+     arrives, take the class back off rather than leave a page of
+     permanently invisible sections. */
+  setTimeout(function () {
+    if (!document.documentElement.hasAttribute("data-js-ready"))
+      document.documentElement.classList.remove("js");
+  }, 2500);
+</script>
+
+<!-- Each nav click is a whole new document. Prerendering on hover means
+     the next page is already built when the click lands, so it swaps in
+     instead of tearing down and rebuilding. Ignored outside Chromium. -->
+<script type="speculationrules">
+{"prerender":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}
+</script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%AB%A7%3C/text%3E%3C/svg%3E">
+</head>
+
+<body>
+<div class="wash" aria-hidden="true"></div>
+
+<div class="nav-shell">
+  <div class="nav-row wrap">
+    <a class="nav-mark" href="/" aria-label="Kimi Nguyen — home">
+      <img class="mark-light" src="assets/logos/logo-white.png" alt="Kimi Nguyen">
+      <img class="mark-dark" src="assets/logos/logo-black.png" alt="" aria-hidden="true">
+    </a>
+
+    <nav class="nav" aria-label="Main">
+      <span class="nav-pill" aria-hidden="true"></span>
+      <ul class="nav-links">
+        <li><a href="/">Home</a></li>
+        <li><a href="/career">Career</a></li>
+        <li><a href="/beauty">Beauty</a></li>
+        <li><a href="/events">Events</a></li>
+      </ul>
+    </nav>
+
+    <div class="nav-actions">
+      <div class="nav-socials">
+        <a href="https://www.tiktok.com/@kiminguyenn" target="_blank" rel="noopener" aria-label="TikTok"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.6 5.82A4.28 4.28 0 0 1 15.54 3h-3.09v12.4a2.59 2.59 0 0 1-2.59 2.5 2.59 2.59 0 1 1 .77-5.06V9.7a5.7 5.7 0 0 0-.77-.05A5.66 5.66 0 1 0 15.54 15.3V8.9a7.35 7.35 0 0 0 4.3 1.38V7.19a4.29 4.29 0 0 1-3.24-1.37Z"/></svg></a>
+        <a href="https://www.instagram.com/kiminguyennn/" target="_blank" rel="noopener" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="12" r="3.8" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="17.2" cy="6.8" r="1.1"/></svg></a>
+        <a href="https://www.linkedin.com/in/kiminguyen/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.94 5a1.94 1.94 0 1 1-3.88 0 1.94 1.94 0 0 1 3.88 0ZM3.2 8.4h3.5V21H3.2V8.4Zm5.8 0h3.35v1.72h.05a3.67 3.67 0 0 1 3.3-1.81c3.53 0 4.18 2.32 4.18 5.35V21h-3.5v-6.03c0-1.44-.03-3.29-2-3.29-2.01 0-2.32 1.57-2.32 3.19V21H9V8.4Z"/></svg></a>
+        <a class="nav-code" href="/built" aria-label="How this site was built" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8.5 8.5-4 3.5 4 3.5"/><path d="m15.5 8.5 4 3.5-4 3.5"/><path d="M13.4 5.5 10.6 18.5"/></svg></a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap built-page">
+
+  <!-- Decorative only, so no alt text and no <img>: it carries no
+       information the copy doesn't already, and a screen reader
+       announcing "cat illustration" here would just be noise. -->
+  <div class="built-art" aria-hidden="true"></div>
+
+  <header class="plain-head">
+    <h1>How I Built This Site</h1>
+  </header>
+
+  <!-- ============================================================
+       PLACEHOLDER COPY — replace with your own words.
+
+       Two or three sentences is the right length here; the page is a
+       reference, and anything longer turns the top of it back into an
+       essay. Add a second <p> if you need one — they stack.
+       ============================================================ -->
+  <p class="plain-intro reveal">
+Despite being a marketing student and a content creator, I've always been interested in design and technology.
+So, using my 5x hackathon experience, I decided to test my abilities by building a unique portfolio that looks EXACTLY
+how I imagined it, instead of an obvious vibe-coded look. This project means a lot to me, so I hope you like it 
+as much as I do! 
+  </p>
+
+  <!-- Three counts, typed in by hand for the same reason the stats on the
+       home page are: nothing here is queryable from a static site. The
+       commit count was 17 as of 28 Jul 2026 — bump it when it drifts far
+       enough to bother you, or drop the tile if you'd rather not. -->
+  <ul class="build-stats reveal">
+    <li class="build-stat surface">
+      <span class="build-stat-n">57</span>
+      <span class="build-stat-l">hours to build</span>
+    </li>
+    <li class="build-stat surface">
+      <span class="build-stat-n">17</span>
+      <span class="build-stat-l">commits</span>
+    </li>
+    <li class="build-stat surface">
+      <span class="build-stat-n">5</span>
+      <span class="build-stat-l">easter eggs hidden</span>
+    </li>
+  </ul>
+
+  <section class="section" id="tools">
+    <div class="section-head reveal">
+      <p class="eyebrow">Tools</p>
+      <h2>What I used, and for what.</h2>
+    </div>
+    <!-- Written out by hand, unlike the video and brand lists elsewhere on
+         the site — this page is short enough to read straight through, and
+         keeping it here means the whole page is editable in one file.
+
+         To add a tool, copy one <li> and change the three parts: the logo
+         path, the name and link, and the line saying what it did. A tool
+         with no logo file yet still works — drop the <img> and leave
+         <span class="tool-mark"></span> empty, and the row keeps its
+         alignment. The onerror does the same thing for a path that's
+         wrong: it hides the broken image rather than drawing the icon. -->
+    <ul class="tool-list reveal">
+      <li class="tool">
+        <span class="tool-mark"><img src="assets/brands/claude-code.png" alt="" onerror="this.closest('.tool-mark').classList.add('is-missing')"></span>
+        <a class="tool-name" href="https://claude.com/claude-code" target="_blank" rel="noopener">Claude Code</a>
+        <span class="tool-use">Wrote the HTML, CSS and JavaScript.</span>
+      </li>
+      <li class="tool">
+        <span class="tool-mark"><img src="assets/brands/vscode.svg" alt="" onerror="this.closest('.tool-mark').classList.add('is-missing')"></span>
+        <a class="tool-name" href="https://code.visualstudio.com/" target="_blank" rel="noopener">VS Code</a>
+        <span class="tool-use">To manually edit HTML and CSS files (because Claude's writing sucks sometimes).</span>
+      </li>
+      <li class="tool">
+        <span class="tool-mark tool-mark--colour"><img src="assets/brands/figma.svg" alt="" onerror="this.closest('.tool-mark').classList.add('is-missing')"></span>
+        <a class="tool-name" href="https://figma.com/" target="_blank" rel="noopener">Figma</a>
+        <span class="tool-use">Where I designed the logo myself! *Applause*</span>
+      </li>
+      <li class="tool">
+        <span class="tool-mark"><img src="assets/brands/github.svg" alt="" onerror="this.closest('.tool-mark').classList.add('is-missing')"></span>
+        <a class="tool-name" href="https://github.com/kiminguyen/portfolio" target="_blank" rel="noopener">GitHub</a>
+        <span class="tool-use">Where I host the site and store the code.</span>
+      </li>
+      <li class="tool">
+        <span class="tool-mark"><img src="assets/brands/vercel.svg" alt="" onerror="this.closest('.tool-mark').classList.add('is-missing')"></span>
+        <a class="tool-name" href="https://vercel.com/" target="_blank" rel="noopener">Vercel</a>
+        <span class="tool-use">Where I deployed the site and purchased my domain.</span>
+      </li>
+      <li class="tool">
+        <span class="tool-mark"><img src="assets/brands/pinterest.svg" alt="" onerror="this.closest('.tool-mark').classList.add('is-missing')"></span>
+        <a class="tool-name" href="https://www.pinterest.com/" target="_blank" rel="noopener">Pinterest</a>
+        <span class="tool-use">Where I sourced my artwork and graphics.</span>
+      </li>
+    </ul>
+  </section>
+
+  <section class="section" style="padding-top:0;">
+    <div class="section-head reveal">
+      <p class="eyebrow">Stack</p>
+      <h2>What it's made of.</h2>
+    </div>
+    <div class="colophon reveal">
+      <dl class="build-facts">
+        <dt>Code</dt>
+        <dd>HTML, CSS and JavaScript.</dd>
+
+        <dt>Pages</dt>
+        <dd>One HTML file each, sharing one stylesheet and one script.</dd>
+
+        <dt>Content</dt>
+        <dd><code>content.js</code> — where I add videos, brand logos, products and quotes. </dd>
+
+        <dt>Type</dt>
+        <dd>Charter for headings, your system font for everything else (no webfonts).</dd>
+
+        <dt>Images</dt>
+        <dd>Compressed before they ship for optimization.</dd>
+
+        <dt>Hosting</dt>
+        <dd>Vercel, connected to and deployed from my GitHub repository.</dd>
+      </dl>
+    </div>
+  </section>
+
+</main>
+
+<script src="content.js"></script>
+<script src="main.js"></script>
+</body>
+</html>

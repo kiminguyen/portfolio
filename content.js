@@ -325,7 +325,7 @@ window.SITE = {
         /* `homeOnly` shows a brand on the home wall and counts it as a
            partner, but keeps it off this group's own page — Akatos is a
            partner whose video sits under Events, not Career. */
-        { name: "Akatos",         logo: "assets/brands/akatos.png",         url: "https://www.akatos.com/", homeOnly: true },
+        { name: "Akatos",         logo: "assets/brands/akatos.png",         url: "https://www.akatos.house/", homeOnly: true },
         /* Logo files for these three aren't in assets/brands/ yet. Until
            they are, each tile falls back to the company name as text —
            save the images at exactly these paths and they take over. */
@@ -377,10 +377,14 @@ window.SITE = {
     { name: "Toronto Tech Week", logo: "assets/brands/toronto-tech-week.svg", url: "https://www.torontotechweek.com/" },
     { name: "Cursor",            logo: "assets/brands/cursor.svg",        url: "https://cursor.com/" },
     { name: "Creatin",           logo: "assets/brands/creatin.png",       url: "https://www.creatin.ca/" },
-    { name: "Akatos",            logo: "assets/brands/akatos.png",        url: "https://www.akatos.com/" },
+    { name: "Akatos",            logo: "assets/brands/akatos.png",        url: "https://www.akatos.house/" },
     { name: "Sip & Scale",       logo: "assets/brands/sip-and-scale.svg", url: "https://sipnscale.com/" },
     { name: "Playa Bowls",       logo: "assets/brands/playa-bowls.svg",   url: "https://www.playabowls.com/" },
   ],
+
+  /* The tools list on /built is NOT here — it's written straight into
+     built.html. That page is short enough to read top to bottom, so the
+     copy lives with the page instead of being assembled from data. */
 
   /* ---------- Testimonials ---------------------------------------
      `company` must appear verbatim inside `role` — the renderer finds

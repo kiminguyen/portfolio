@@ -1002,7 +1002,10 @@
       /* the nav lives outside the swap, so its current-page marker has
          to be moved by hand */
       var path = new URL(url, location.href).pathname;
-      shell.querySelectorAll(".nav-links a").forEach(function (a) {
+      /* .nav-code too: it links to a page like any nav item, but sits in
+         the socials row rather than .nav-links, so it would otherwise
+         keep whichever marker the first-loaded document shipped with. */
+      shell.querySelectorAll(".nav-links a, .nav-code").forEach(function (a) {
         if (new URL(a.href).pathname === path) a.setAttribute("aria-current", "page");
         else a.removeAttribute("aria-current");
       });
