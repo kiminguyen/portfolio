@@ -65,7 +65,11 @@
       <ul class="nav-links">
         <li><a href="/" aria-current="page">Home</a></li>
         <li class="has-menu">
-          <a href="/career">Content <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></a>
+          <!-- A button, not a link: it opens the flyout and goes nowhere.
+               As an <a href="/career"> a click left the page before the
+               menu could be read, and on a touch screen there was no way
+               to see the menu at all. -->
+          <button type="button" class="nav-trigger" aria-expanded="false">Content <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
           <div class="nav-menu">
             <a href="/career">Career</a>
             <a href="/beauty">Beauty</a>
@@ -187,7 +191,24 @@
     </figure>
 
     <!-- views — first tile in the left column, below the hero -->
-    <div class="b art-sky has-confetti">
+    <div class="b art-sky has-confetti has-marks">
+      <!-- The two platforms the 4M+ is counted across, same corner and the
+           same white-with-dark-shadows treatment as the LinkedIn tile's
+           mark. White is about 1.3:1 flat against this corner, so as on
+           that tile it's the shadows that separate the glyphs from the
+           artwork, not the fill.
+
+           aria-hidden because the line under the number already reads
+           "views on TikTok & Instagram" — labelling these would make a
+           screen reader say both platforms twice. -->
+      <span class="tile-marks" aria-hidden="true">
+        <span class="tile-mark">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.6 5.82A4.28 4.28 0 0 1 15.54 3h-3.09v12.4a2.59 2.59 0 0 1-2.59 2.5 2.59 2.59 0 1 1 .77-5.06V9.7a5.7 5.7 0 0 0-.77-.05A5.66 5.66 0 1 0 15.54 15.3V8.9a7.35 7.35 0 0 0 4.3 1.38V7.19a4.29 4.29 0 0 1-3.24-1.37Z"/></svg>
+        </span>
+        <span class="tile-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="3.8"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/></svg>
+        </span>
+      </span>
       <div class="stat" data-stat="tiktok.views">4M+</div>
       <div class="stat-sub">views on TikTok &amp; Instagram</div>
       <div class="cap">All time</div>

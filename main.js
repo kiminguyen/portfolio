@@ -189,6 +189,26 @@
 
     host.innerHTML = DATA.experience.map(function (e) {
       var current = /present|now/i.test(e.to || "");
+      var org = esc(e.org || "");
+
+      /* The mark and the name both link out, so either is clickable —
+         but the mark is taken out of the accessibility tree and the tab
+         order, because two links to one place read as a stutter and cost
+         a keyboard user an extra stop. An entry with no url on file keeps
+         them as plain elements rather than dead links. */
+      var logo = !e.logo ? "" :
+        (e.url ? '<a class="xp-logo" href="' + esc(e.url) + '" target="_blank"' +
+                   ' rel="noopener" tabindex="-1" aria-hidden="true">'
+               : '<span class="xp-logo">') +
+          '<img src="' + esc(e.logo) + '" alt="" loading="lazy"' +
+            ' onerror="this.closest(\'.xp-logo\').remove()">' +
+        (e.url ? "</a>" : "</span>");
+
+      var name = e.url
+        ? '<a class="xp-site" href="' + esc(e.url) + '" target="_blank" rel="noopener">' +
+            org + "</a>"
+        : org;
+
       return (
         '<li class="xp' + (current ? " is-current" : "") + '">' +
           '<div class="xp-when">' +
@@ -196,18 +216,22 @@
             (e.to ? ' <span aria-hidden="true">–</span> ' + esc(e.to) : "") +
           "</div>" +
           '<div class="xp-body">' +
-            /* An entry with no logo on file simply doesn't get one — the
-               org name is already right there in the line below, so there
-               is nothing to fall back to and nothing missing. */
-            (e.logo
-              ? '<span class="xp-logo"><img src="' + esc(e.logo) + '" alt="" loading="lazy"' +
-                  ' onerror="this.closest(\'.xp-logo\').remove()"></span>'
-              : "") +
+            logo +
             '<h3 class="xp-role">' + esc(e.role || "") + "</h3>" +
-            '<p class="xp-org">' + esc(e.org || "") +
-              (e.where ? ' <span class="xp-where">' + esc(e.where) + "</span>" : "") +
-            "</p>" +
-            (e.note ? '<p class="xp-note">' + esc(e.note) + "</p>" : "") +
+            '<p class="xp-org">' + name + "</p>" +
+            /* The place and the line about the work fold away until the
+               entry is hovered, so the column scans as dates and job
+               titles first. Wrapped in two elements on purpose: the outer
+               one animates its height, the inner one is what gets
+               clipped. Neither is display:none — the text stays in the
+               page for screen readers and for Cmd-F, and it stays open
+               outright on touch, where there is no hover to give. */
+            (e.where || e.note
+              ? '<div class="xp-detail"><div class="xp-detail-in">' +
+                  (e.where ? '<p class="xp-where">' + esc(e.where) + "</p>" : "") +
+                  (e.note ? '<p class="xp-note">' + esc(e.note) + "</p>" : "") +
+                "</div></div>"
+              : "") +
           "</div>" +
         "</li>"
       );
@@ -547,8 +571,12 @@
     if (!nav || !pill) return;
 
     /* top level only — hovering a link inside the open flyout shouldn't
-       send the pill down there after it */
-    var links = [].slice.call(nav.querySelectorAll(".nav-links > li > a"));
+       send the pill down there after it. The Content item is a button
+       rather than a link, so it has to be named separately or the pill
+       would skip straight over it. */
+    var links = [].slice.call(
+      nav.querySelectorAll(".nav-links > li > a, .nav-links > li > .nav-trigger")
+    );
     if (!links.length) return;
 
     /* Looked up each time rather than captured once: the router moves
@@ -564,7 +592,10 @@
       var current = nav.querySelector('.nav-links a[aria-current="page"]');
       if (!current) return null;
       var group = current.closest(".has-menu");
-      return group ? group.querySelector("a") : current;
+      /* .nav-trigger, not "a": the opener is a button now, and querying
+         for a link here would hand the pill the first item inside the
+         closed flyout instead. */
+      return group ? group.querySelector(".nav-trigger") : current;
     }
     var at = null;
 
@@ -605,6 +636,50 @@
 
     /* the router calls this after moving aria-current */
     navPillRest = function () { moveTo(home(), true); };
+  }
+
+  /* ------------------------------------------- the Content flyout
+     Hover and keyboard focus open it in CSS alone; this adds the click,
+     which is the only way in on a touch screen, where there is no hover
+     to give and :focus-within on a button is inconsistent.
+
+     `is-open` is what CSS watches — the same rule the hover state uses —
+     so an open menu survives the pointer leaving the item, which is the
+     "persist" part: it stays until you pick something, click away, or
+     press Escape. */
+  function initNavMenu() {
+    document.querySelectorAll(".has-menu").forEach(function (group) {
+      var trigger = group.querySelector(".nav-trigger");
+      if (!trigger) return;
+
+      function set(open) {
+        group.classList.toggle("is-open", open);
+        trigger.setAttribute("aria-expanded", open ? "true" : "false");
+      }
+
+      trigger.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        set(!group.classList.contains("is-open"));
+      });
+
+      /* picking a destination — let the click through, just drop the
+         open state so the menu isn't still up if the page swaps in place */
+      group.querySelectorAll(".nav-menu a").forEach(function (a) {
+        a.addEventListener("click", function () { set(false); });
+      });
+
+      document.addEventListener("click", function (e) {
+        if (!group.contains(e.target)) set(false);
+      });
+
+      document.addEventListener("keydown", function (e) {
+        if (e.key !== "Escape" || !group.classList.contains("is-open")) return;
+        set(false);
+        /* focus would otherwise stay inside a panel that just vanished */
+        trigger.focus();
+      });
+    });
   }
 
   /* ------------------------------------------ the soap-bubble layer
@@ -913,11 +988,24 @@
       }).join(", ") + ".";
     }
 
-    /* Weighted draw, with the role just shown taken out of the pool so
-       it can't come up twice running — at weight 3 against a field of
-       1s, Content Creator would otherwise repeat itself fairly often
-       and read as a stall rather than a choice. */
+    /* The first LEAD_IN roles are shown in list order before the random
+       rotation starts, so the two that actually describe the work are
+       always the two a visitor sees first. Weighting them instead only
+       made them LIKELY to come up early; this makes it certain, and it
+       leaves the rest of the list a flat pool.
+
+       Counts draws rather than tracking an index, so it stays correct
+       however the rotation is entered. */
+    var LEAD_IN = 2;
+    var drawn = 0;
+
+    /* Weighted draw, with the role just shown taken out of the pool so it
+       can't come up twice running. Nothing sets a weight today, so this
+       is an even draw — it stays because content.js still documents
+       `weight` as something you can reach for. */
     function pick(previous) {
+      if (drawn < LEAD_IN && drawn < roles.length) return roles[drawn++].name;
+      drawn++;
       var pool = roles.filter(function (r) { return r.name !== previous; });
       if (!pool.length) pool = roles;
       var total = pool.reduce(function (n, r) { return n + r.weight; }, 0);
@@ -1230,6 +1318,7 @@
 
   /* ------------------------------------------------------ init */
   initNavPill();
+  initNavMenu();
   initCursorBubbles();
   initRouter();
   mountPage();

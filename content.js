@@ -8,16 +8,22 @@ window.SITE = {
      The line under the greeting on the home page. Each one types
      itself out, holds a beat, deletes, and the next one takes over.
 
-     The next one is picked at random rather than taken in order, so
-     the line doesn't run to a script anyone can follow. `weight` is
-     how often a role comes up against the others: at 3 against 1,
-     Content Creator turns up three times as often as Artist. Leave
-     `weight` off for the ordinary rate of 1. The same role is never
-     picked twice running, whatever its weight.
+     ORDER MATTERS FOR THE FIRST TWO. The line always opens with the
+     first two in this list, in this order, so the two that actually
+     describe the work land before anyone scrolls past. Everything
+     after that is picked at random, so the line doesn't run to a
+     script anyone can follow. To change which two open, move them to
+     the top; to have a different number of them, change LEAD_IN in
+     main.js.
 
-     Add, remove or reorder freely — order here doesn't decide
-     anything any more, it's just the pool. A plain string works too
-     if you don't care about the rate.
+     The rest of the list is a flat pool — every role after the first
+     two comes up as often as any other. `weight` still works if you
+     ever want one to come up more often (`weight: 3` means three
+     times as often as a plain entry), but nothing uses it right now.
+     The same role is never picked twice running.
+
+     Add, remove or reorder freely, keeping the first-two rule in
+     mind. A plain string works too.
 
      The "a" / "an" in front is picked per role from its first letter,
      so "an Artist" comes out right with nothing extra here. A role
@@ -31,14 +37,15 @@ window.SITE = {
      meant to hold without wrapping.
   ------------------------------------------------------------------ */
   roles: [
-    { name: "Content Creator", weight: 3 },
-    { name: "Marketer",        weight: 3 },
+    { name: "Content Creator" },
+    { name: "Marketer" },
     { name: "Web Designer" },
     { name: "Event Host" },
     { name: "Growth Lead" },
     { name: "Artist" },
     { name: "LinkedIn Warrior" },
     { name: "Game Caster" },
+    { name: "Cat Lover" },
     { name: "Fellow" },
   ],
 
@@ -437,46 +444,119 @@ window.SITE = {
   ------------------------------------------------------------------ */
   experience: [
     {
+      org: "Sip & Scale",
+      url: "https://sipnscale.com/",
+      logo: "assets/brands/sip-and-scale.svg",
+      role: "Head of Marketing & Growth",
+      where: "Toronto, ON",
+      from: "Jul 2026",
+      to: "Present",
+      note: "Hosting community events.",
+    },
+    {
+      org: "Intern Insider",
+      url: "https://interninsider.me/",
+      /* the robot on its own, cropped out of the wordmark in
+         intern-insider.png. The full lockup is 748x177, so inside a tile
+         that caps height it came out about 34px wide and 8px tall — the
+         robot alone fills the same tile roughly four times taller. The
+         wordmark is still what the brand wall uses, where the tile is
+         wide enough to carry it. */
+      logo: "assets/brands/intern-insider-icon.png",
+      role: "Fellow",
+      where: "Toronto, ON",
+      from: "Jul 2026",
+      to: "Present",
+      note: "One of 25 growth fellows in the first-ever cohort.",
+    },
+    {
+      org: "Blossom Social",
+      url: "https://blossomsocial.com/",
+      logo: "assets/brands/blossom-social.png",
+      role: "UGC Creator",
+      where: "Toronto, ON",
+      from: "Jun 2026",
+      to: "Jul 2026",
+      note: "Growing the #1 investing social media platform.",
+    },
+    {
       org: "Girls Who Lead",
+      url: "https://www.girlswholead.ca/",
       logo: "assets/brands/girls-who-lead.png",
       role: "Marketing and Content Lead",
+      where: "Toronto, ON",
       from: "Sept 2025",
       to: "Present",
-      where: "Student-led non-profit · Canada & USA",
       note: "Led content and social strategy across two countries, sourcing creators and growing post viewership 200%.",
     },
     {
+      org: "Tomo",
+      url: "https://tomo.ai/",
+      logo: "assets/brands/tomo.png",
+      role: "UGC Creator",
+      where: "San Francisco, CA",
+      from: "Sep 2025",
+      to: "Present",
+      note: "Using Tomo to live life to the fullest.",
+    },
+    {
+      org: "FUN EXTENSION RECORDS",
+      url: "https://funxtension.com/",
+      logo: "assets/brands/fun-extension-records.jpeg",
+      role: "Musician",
+      where: "Toronto, ON",
+      from: "Aug 2025",
+      to: "Present",
+      note: "Releasing music through the label.",
+    },
+    {
+      org: "Extern",
+      url: "https://extern.com/",
+      logo: "assets/brands/extern.png",
+      role: "Content Creator",
+      where: "Remote",
+      from: "Aug 2025",
+      to: "Present",
+      note: "Bringing real experience to students.",
+    },
+    {
       org: "Karla Technologies",
+      logo: "assets/brands/karla.jpeg",
+      url: "https://www.karlafinance.com/",
       role: "Digital Marketing Intern",
+      where: "Toronto, ON",
       from: "May 2025",
       to: "Aug 2025",
-      where: "Toronto, ON",
       note: "Ran end-to-end campaigns across Instagram, TikTok and YouTube, and designed the app and landing page mockups.",
     },
     {
       org: "Wealthsimple Foundation",
+      url: "https://wealthsimplefoundation.com/",
       logo: "assets/brands/wealthsimple.jpg",
       role: "Content Creator and Ambassador",
+      where: "Toronto, ON",
       from: "Mar 2025",
       to: "Jan 2026",
-      where: "Toronto, ON",
       note: "Turned complex financial ideas into short-form content — 3M+ views and 400K+ likes — and repped the Foundation on campus.",
     },
     {
       org: "Scotiabank",
+      url: "https://www.scotiabank.com/ca/en/personal.html",
       logo: "assets/brands/scotiabank.svg",
       role: "Change Management and Communications Intern",
+      where: "Toronto, ON",
       from: "Jan 2025",
       to: "Apr 2025",
-      where: "Toronto, ON",
       note: "Wrote internal comms on SharePoint and co-designed an AI chatbot prototype in Figma, presented to senior stakeholders.",
     },
     {
       org: "FinTech Association",
+      url: "https://www.utmfa.ca/",
+      logo: "assets/brands/utmfa-logo.png",
       role: "President, Founder, ex VP of Marketing",
+      where: "Toronto, ON",
       from: "Apr 2023",
       to: "Apr 2026",
-      where: "University of Toronto Mississauga",
       note: "Founded UTM's largest FinTech community at 150+ members, and ran sponsorship outreach with RBC, TD, IBM and Shopify.",
     },
   ],

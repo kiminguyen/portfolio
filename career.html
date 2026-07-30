@@ -58,7 +58,11 @@
       <ul class="nav-links">
         <li><a href="/">Home</a></li>
         <li class="has-menu">
-          <a href="/career">Content <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></a>
+          <!-- A button, not a link: it opens the flyout and goes nowhere.
+               As an <a href="/career"> a click left the page before the
+               menu could be read, and on a touch screen there was no way
+               to see the menu at all. -->
+          <button type="button" class="nav-trigger" aria-expanded="false">Content <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
           <div class="nav-menu">
             <a href="/career" aria-current="page">Career</a>
             <a href="/beauty">Beauty</a>

@@ -195,15 +195,26 @@ a   { color: inherit; text-decoration: none; }
   background:
     radial-gradient(58% 52% at 32% 26%,
       rgba(255, 255, 255, 0.95) 0%,
-      rgba(255, 255, 255, 0.3) 44%,
-      rgba(255, 255, 255, 0) 70%),
+      rgba(255, 255, 255, 0.34) 44%,
+      rgba(191, 224, 230, 0.22) 70%),
     radial-gradient(120% 120% at 72% 80%,
-      rgba(180, 228, 240, 0.55) 0%,
+      rgba(180, 228, 240, 0.5) 0%,
       rgba(255, 255, 255, 0.06) 62%);
-  border: 1px solid rgba(255, 255, 255, 0.75);
+  /* TWO rims, and both are load-bearing — the same trick as the cursor PNG.
+     The rim is the whole silhouette here, and a white one measured 1.03:1
+     against the page: invisible. Going teal instead just moves the problem,
+     dropping the dark lander from 7.19:1 to 1.38:1. With both, whichever
+     surface a bubble drifts over, one of them carries it:
+
+       page  teal 2.82 / white 1.03      lander  teal 1.38 / white 8.69
+       card  teal 2.71 / white 1.11      peach   teal 2.21 / white 1.64
+
+     Nothing below 2.2:1. Don't drop either ring. */
+  border: 1px solid rgba(63, 96, 104, 0.62);
   box-shadow:
-    0 0 5px -1px rgba(120, 180, 195, 0.55),
-    inset 0 0 3px rgba(255, 255, 255, 0.85);
+    0 0 4px -1px rgba(63, 96, 104, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.85),
+    inset 0 0 3px rgba(255, 255, 255, 0.9);
   will-change: transform, opacity;
   animation-name: bubble-float;
   animation-timing-function: cubic-bezier(0.22, 0.68, 0.3, 1);
@@ -553,6 +564,7 @@ h1, h2, h3, h4 {
 /* everything in the bar is plain white text — no pills */
 .nav-mark,
 .nav-links a,
+.nav-links .nav-trigger,
 .nav-socials a {
   color: #fff;
   transition: color 0.2s, opacity 0.2s;
@@ -601,7 +613,8 @@ h1, h2, h3, h4 {
 
 .nav-links { display: flex; align-items: center; gap: 2px; list-style: none; margin: 0; padding: 0; }
 .nav-links > li { position: relative; }
-.nav-links a {
+.nav-links a,
+.nav-links .nav-trigger {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -611,7 +624,8 @@ h1, h2, h3, h4 {
   font-weight: 500;
   white-space: nowrap;
 }
-.nav-links a:hover { opacity: 0.78; }
+.nav-links a:hover,
+.nav-links .nav-trigger:hover { opacity: 0.78; }
 .nav-links a[aria-current="page"] { font-weight: 700; }
 .nav-links svg { width: 11px; height: 11px; transition: transform 0.25s var(--ease); }
 
@@ -642,7 +656,8 @@ h1, h2, h3, h4 {
   box-shadow: 0 20px 44px -14px rgba(10, 12, 20, 0.5);
 }
 .has-menu:hover .nav-menu,
-.has-menu:focus-within .nav-menu {
+.has-menu:focus-within .nav-menu,
+.has-menu.is-open .nav-menu {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
@@ -650,10 +665,31 @@ h1, h2, h3, h4 {
 }
 /* `> a svg`, not `.nav-links svg`: .nav-links is the ancestor of the li
    now, not a descendant, so the old selector matched nothing */
-.has-menu:hover > a svg,
-.has-menu:focus-within > a svg { transform: rotate(180deg); }
+.has-menu:hover > .nav-trigger svg,
+.has-menu:focus-within > .nav-trigger svg,
+.has-menu.is-open > .nav-trigger svg { transform: rotate(180deg); }
 /* the chevron rides with the label rather than sitting on the baseline */
-.has-menu > a { display: inline-flex; align-items: center; gap: 5px; }
+/* A <button> brings its own font, background, border and alignment; none
+   of that is inherited, so it has to be cleared before the shared
+   .nav-links rules can make it look like its neighbours. */
+.nav-links .nav-trigger {
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+/* The chevron closes up to its label, and the trailing padding comes in.
+   At the shared 15px the chevron left a 48px hole before "Experience"
+   against 32px between the other two — the mark is too small and too
+   pale to fill the space it was sitting in, so the row read uneven. */
+.has-menu > .nav-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 10px;
+}
 /* Hover has to survive the 12px of air between the item and the panel,
    or the menu closes as the pointer travels down to it. */
 .nav-menu::before {
@@ -716,6 +752,7 @@ h1, h2, h3, h4 {
   box-shadow: 0 1px 2px rgba(35,37,43,.04), 0 10px 26px -14px rgba(52,46,60,.26);
 }
 .nav-shell.is-scrolled .nav-links a,
+.nav-shell.is-scrolled .nav-links .nav-trigger,
 .nav-shell.is-scrolled .nav-socials a { color: var(--ink); }
 /* over the light bar a white pill would vanish — tint it instead */
 .nav-shell.is-scrolled .nav-pill {
@@ -1398,6 +1435,44 @@ a.b:hover {
 }
 .tile-mark svg { width: 30px; height: 30px; }
 
+/* A tile that spans more than one platform gets a row of marks instead of
+   the single one. This takes over the corner placement so its children can
+   sit side by side rather than stacking on the same spot. */
+.tile-marks {
+  position: absolute;
+  top: 16px;
+  left: 18px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.tile-marks .tile-mark { position: static; }
+/* Room for that row above the number. The LinkedIn tile needs nothing here
+   because its stat is bottom-aligned by an auto margin; this tile's stat
+   starts at the top — on this one the auto margin is on .cap — so without
+   the offset the marks sit right on top of the figure. */
+.b.has-marks > .stat { margin-top: 30px; }
+/* Two of them read heavier than one, so they sit a little under the 30px
+   the single mark uses. */
+.tile-marks .tile-mark svg { width: 26px; height: 26px; }
+/* Neutral black here, not the warm brown .tile-mark inherits. That brown
+   (rgba(70,22,18)) was picked to sit with the peach of the LinkedIn tile;
+   over this blue-grey sky it reads visibly pink.
+
+   Lighter than the LinkedIn mark's, too. Those alphas (.90/.75/.50) were
+   set for the peach tile, where white measures 1.27:1 flat and the shadow
+   has to fight for the glyph. This corner composites to luma ~218 — still
+   too pale for white on its own, so the shadow is doing the work, but a
+   much easier surface — and at full strength it read as a hard black
+   outline rather than a shadow. */
+.tile-marks .tile-mark {
+  filter:
+    drop-shadow(0 0 1px rgba(0, 0, 0, 0.6))
+    drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45))
+    drop-shadow(0 3px 8px rgba(0, 0, 0, 0.3));
+}
+
 /* --- card title + arrow ------------------------------------ */
 .b-title { display: block; }
 /* keeps the heading clear of the pinned arrow */
@@ -1777,7 +1852,25 @@ a.b:hover .mini img:nth-child(3) { transform: rotate(11deg) translateY(-4px); }
 /* the head row loses the card's padding, so it needs its own breathing
    room under it before the headline */
 .page-head--plain .head-top { margin-bottom: 22px; }
-.page-head--plain > p:last-child { color: var(--ink-soft); }
+/* 48ch broke this one across two lines at 638px of text. The gallery
+   banners want the narrow measure — their copy sits over artwork and a
+   long line would run under the crop — but this header is type on the
+   page, so the line is allowed to run its natural length and sit on one
+   row. Still a max, so it wraps rather than sprawling on a wide monitor. */
+.page-head--plain > p:last-child { color: var(--ink-soft); max-width: 70ch; }
+/* Matched to /built's title, not to the gallery banners. Those run to
+   58px because they're set over a photograph and have to hold their own
+   against it; on a bare page that size is just loud. Same values as
+   .plain-head h1 — the two plain pages should open at one weight.
+
+   Both class names in the selector on purpose: `.page-head--plain h1`
+   alone ties with `.page-head h1`, which is declared below it and would
+   win on source order. Naming both takes specificity out of it. */
+.page-head.page-head--plain h1 {
+  font-size: clamp(32px, 4.6vw, 46px);
+  letter-spacing: -0.026em;
+  margin: 0;
+}
 
 .page-head h1 {
   font-size: clamp(34px, 5.4vw, 58px);
@@ -2581,25 +2674,34 @@ a.product:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 /* =============================================================
    Experience timeline
    ============================================================= */
-/* One rail down the left, one dot per role. The rail is a ::before on
-   the list rather than a border on each row, so it can stop short at the
-   bottom — a border would run past the last dot to the end of the item
-   and leave a stub hanging below it. */
+/* One rail down the middle, roles alternating either side of it. The rail
+   is a ::before on the list rather than a border on each row, so it can
+   stop short at the bottom — a border would run past the last dot to the
+   end of the item and leave a stub hanging below it.
+
+   --xp-dot is the dot's full OUTER size, which under the global
+   border-box is just its width — the 2px border is already inside that
+   12px, not added to it. Half of it pulls each dot back onto the rail
+   from the column edge. Set to 16px it overshot by 2px in each
+   direction, which put the left dots 2px right of the rail and the
+   right dots 2px left: a 4px zig-zag down the line. */
 .timeline {
   list-style: none;
   margin: 0;
   padding: 0;
   position: relative;
-  /* A gutter to the left of the rail, for the org marks. Everything that
-     follows — rail, dot, text — is offset by it, so the marks get a
-     column of their own outside the line rather than sitting in among
-     the copy. One value moves the lot. */
-  --xp-gutter: 92px;
+  --xp-dot: 12px;
+  /* clear space either side of the rail, between it and the copy */
+  --xp-air: 46px;
+  /* how wide a role's tile is allowed to get before it stops growing and
+     the page edge takes the slack instead */
+  --xp-card: 370px;
 }
 .timeline::before {
   content: "";
   position: absolute;
-  left: calc(var(--xp-gutter) + 5px);
+  left: 50%;
+  margin-left: -1px;
   top: 8px;
   /* stops at the last dot instead of the list's full height */
   bottom: 20px;
@@ -2610,19 +2712,41 @@ a.product:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 
 .xp {
   position: relative;
-  padding: 0 0 30px calc(var(--xp-gutter) + 30px);
-  /* The entry sets its own column rather than running the page's full
-     width, so the note keeps a readable measure instead of stretching to
-     whatever the viewport is. The gutter is on top of that measure, not
-     taken out of it. */
-  max-width: calc(74ch + var(--xp-gutter));
+  width: 50%;
+  /* Tightened from 34px: with eleven roles the column ran past two
+     screens, and only two entries were legible at a time. */
+  padding-bottom: 12px;
+}
+/* Odd entries take the left half and set ragged-left, so their text ends
+   against the rail; even entries take the right half and read normally.
+   The alignment is what does the work — the logo is an inline box, so it
+   follows the text to whichever side the rail is on without needing a
+   rule of its own. */
+.xp:nth-child(odd) {
+  padding-right: var(--xp-air);
+  text-align: right;
+}
+.xp:nth-child(even) {
+  margin-left: 50%;
+  padding-left: var(--xp-air);
+  text-align: left;
+  /* Nest each right-hand entry up beside the left-hand one above it,
+     instead of starting below it. Without this every half-width card
+     still claimed a full row of its own, so the column ran twice as long
+     as it needed to and the entries read as far apart.
+
+     Safe against a same-side collision as long as this stays under the
+     shortest entry's height: pulling the even entries up by X moves the
+     next odd one up by X too, so same-side neighbours keep (height - X)
+     of clearance. The shortest entry here is ~150px, so 84 leaves room
+     even if a role wraps to two lines. */
+  margin-top: -84px;
 }
 .xp:last-child { padding-bottom: 0; }
 /* the dot. Ring by default, filled for a current role — see .is-current */
 .xp::before {
   content: "";
   position: absolute;
-  left: var(--xp-gutter);
   top: 7px;
   width: 12px;
   height: 12px;
@@ -2630,10 +2754,17 @@ a.product:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
   background: var(--paper, #fff);
   border: 2px solid rgba(35, 37, 43, 0.28);
 }
+/* pulled back by half its own width so it straddles the rail rather than
+   sitting beside it */
+.xp:nth-child(odd)::before  { right: calc(var(--xp-dot) / -2); }
+.xp:nth-child(even)::before { left:  calc(var(--xp-dot) / -2); }
+/* A current role gets the pink rather than --hover, which is a dark
+   slate and read as just another grey dot. The halo is a tint of the
+   same pink instead of a black wash, so the glow reads as colour too. */
 .xp.is-current::before {
-  background: var(--hover);
-  border-color: var(--hover);
-  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.05);
+  background: var(--pink);
+  border-color: var(--pink);
+  box-shadow: 0 0 0 4px rgba(255, 92, 138, 0.18);
 }
 
 .xp-when {
@@ -2644,31 +2775,28 @@ a.product:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
   color: var(--muted);
   margin-bottom: 4px;
 }
-/* The org's mark, set to the left of the entry with the text running
-   alongside. A logo tile rather than a bare image: these come in every
-   shape and background — a purple square, a red roundel, a white-ground
-   JPG — and only a common frame stops the column reading as a jumble.
-   contain, so nothing is ever cropped, and full colour: these are the
-   marks of real places and they should look like themselves. */
+/* The org's mark, above the role. A logo tile rather than a bare image:
+   these come in every shape and background — a purple square, a red
+   roundel, a white-ground JPG — and only a common frame stops the column
+   reading as a jumble. contain, so nothing is ever cropped, and full
+   colour: these are the marks of real places and they should look like
+   themselves. */
 .xp-logo {
-  /* Out of the flow entirely and parked in the gutter, so the copy keeps
-     a straight left edge instead of wrapping around the mark. Right-
-     aligned in its column: the marks then line up against the rail
-     rather than raggedly against the page edge. */
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: auto;
+  /* An inline box in the flow, not positioned. That's the whole trick of
+     the alternating layout: the tile inherits the entry's text-align, so
+     it lands against the rail on a left-hand entry and against the rail
+     on a right-hand one, with no side-specific rule anywhere. */
+  display: inline-grid;
+  place-items: center;
+  vertical-align: top;
   /* Height is fixed and width follows the mark, so a wordmark can grow
      sideways rather than being squashed to a hairline inside a square. */
-  height: 68px;
+  height: 46px;
   width: auto;
-  min-width: 68px;
-  max-width: calc(var(--xp-gutter) - 18px);
-  margin: 0;
-  display: grid;
-  place-items: center;
-  padding: 9px 12px;
+  min-width: 46px;
+  max-width: 124px;
+  margin: 0 0 8px;
+  padding: 6px 9px;
   border-radius: var(--r-sm);
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.85);
@@ -2676,15 +2804,69 @@ a.product:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 }
 /* Absolute caps, not 100%: as a grid item the percentage resolved
    against an auto track rather than the tile's height, and the square
-   marks burst straight out of the tile. 50 = the tile's 68 less its 9px
+   marks burst straight out of the tile. 34 = the tile's 46 less its 6px
    of padding top and bottom. */
 .xp-logo img {
-  max-width: 50px;
-  max-height: 50px;
+  max-width: 34px;
+  max-height: 34px;
   width: auto;
   height: auto;
   object-fit: contain;
 }
+/* Both the mark and the org name link out to the company. Kept plain: a
+   2px lift on the tile and the site's teal on the name, which is the same
+   pair of moves the brand wall and the social chips already use. Anything
+   more on a page that is mostly a list of dates starts to fidget. */
+a.xp-logo {
+  transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
+}
+a.xp-logo:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+.xp-site {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.2s var(--ease);
+}
+.xp-site:hover { color: var(--hover); }
+/* keyboard users get the same cue, plus the ring the browser draws */
+.xp-site:focus-visible { color: var(--hover); }
+
+@media (prefers-reduced-motion: reduce) {
+  a.xp-logo { transition: none; }
+  a.xp-logo:hover { transform: none; }
+  /* the fold still folds, it just stops sliding — and the tile stops
+     jumping under the pointer */
+  .xp-detail { transition: none; }
+  .xp-body { transition: none; }
+  .xp:hover .xp-body,
+  .xp:focus-within .xp-body { transform: none; }
+}
+
+/* Each entry is a tile of its own now, rather than bare type against the
+   rail. Transparent at rest so the column still reads as a timeline and
+   not as a wall of cards; the frame only arrives under the pointer. */
+.xp-body {
+  /* Capped, and pushed against the rail by the auto margin below. Left to
+     fill its half of the page a tile ran past 500px on a laptop, which
+     read as a full-width band rather than a card and left the two columns
+     nearly touching. min() rather than a bare max-width so the cap gets
+     out of the way once the list is one column and the tile should fill.
+
+     Change --xp-card on .timeline to resize every tile at once. */
+  max-width: min(var(--xp-card), 100%);
+  padding: 13px 16px;
+  border-radius: var(--r-md);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: background 0.25s var(--ease), border-color 0.25s var(--ease),
+              box-shadow 0.25s var(--ease), transform 0.25s var(--ease);
+}
+/* Odd entries sit in the left column and read ragged-left, so their tile
+   has to be pushed right to stay against the rail. Even entries are
+   already hard against it — a block box starts at its left edge. */
+.xp:nth-child(odd) .xp-body { margin-left: auto; }
 
 .xp-role {
   margin: 0;
@@ -2700,29 +2882,85 @@ a.product:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
   color: var(--ink-soft);
 }
 /* the place, quieter than the org and on the same line until it can't be */
+/* Its own line inside the reveal now, not a tail on the org name — so the
+   interpunct that used to separate the two has gone with it. */
 .xp-where {
-  font-weight: 400;
+  margin: 5px 0 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--muted);
 }
-.xp-where::before { content: "· "; }
+/* The fold. grid-template-rows animates 0fr -> 1fr, which is the one way
+   to transition to a height the content decides for itself; max-height
+   would need a guessed ceiling and would ease wrong on every entry whose
+   note runs to a different number of lines.
+
+   Open by default. Only a pointer that can actually hover gets the
+   collapsed state, so on a phone the whole entry reads as it always did —
+   this is a CV, and hiding half of it behind a gesture that doesn't exist
+   on the device would be worse than showing it. */
+.xp-detail { display: grid; grid-template-rows: 1fr; }
+.xp-detail-in { overflow: hidden; }
+
+@media (hover: hover) and (pointer: fine) {
+  .xp-detail {
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.32s var(--ease);
+  }
+  /* focus-within, not just hover: tabbing to the org link opens the same
+     entry, so a keyboard reaches everything a mouse does */
+  .xp:hover .xp-detail,
+  .xp:focus-within .xp-detail { grid-template-rows: 1fr; }
+
+  .xp:hover .xp-body,
+  .xp:focus-within .xp-body {
+    background: rgba(255, 255, 255, 0.72);
+    border-color: var(--line);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-2px);
+  }
+}
+
 .xp-note {
-  margin: 7px 0 0;
+  margin: 5px 0 0;
   font-size: 14.5px;
   line-height: 1.55;
   color: var(--ink-soft);
-  max-width: 62ch;
+  /* no ch measure here: the entry is already half the page, and a 62ch cap
+     on top of that only fought the column at wide widths */
 }
 
-@media (max-width: 620px) {
-  /* A 92px gutter plus the rail leaves the copy about half the screen, so
-     the marks come down to a size that still reads and the gutter shrinks
-     with them. */
-  .timeline { --xp-gutter: 56px; }
-  .xp { padding-left: calc(var(--xp-gutter) + 24px); padding-bottom: 26px; }
-  .xp-logo { height: 48px; min-width: 48px; padding: 6px 7px; }
-  .xp-logo img { max-width: 34px; max-height: 34px; }
-  .xp-where { display: block; }
-  .xp-where::before { content: ""; }
+/* Below this a half-width column is too narrow to set a sentence in, so
+   the alternating layout is abandoned: rail back to the left, every entry
+   full width beneath it, reading top to bottom. Same markup, and nothing
+   here has to know which side it used to be on. */
+@media (max-width: 760px) {
+  .timeline::before { left: 5px; margin-left: 0; }
+  /* One column, so the tile has no neighbour to keep its distance from
+     and the cap only strands space on the right. Overriding the variable
+     rather than max-width keeps the rule in .xp-body the single place the
+     width is worked out. */
+  .timeline { --xp-card: 100%; }
+  .xp,
+  .xp:nth-child(odd),
+  .xp:nth-child(even) {
+    width: auto;
+    margin-left: 0;
+    /* and the nesting pull-up goes with it: there's no opposite side to
+       nest against in one column, so leaving it would lap each entry over
+       the one above */
+    margin-top: 0;
+    padding: 0 0 28px 34px;
+    text-align: left;
+  }
+  /* the auto margin was only ever there to push the tile at the rail */
+  .xp:nth-child(odd) .xp-body { margin-left: 0; }
+  .xp:last-child { padding-bottom: 0; }
+  .xp:nth-child(odd)::before,
+  .xp:nth-child(even)::before { left: 0; right: auto; }
+  .xp-logo { height: 54px; min-width: 54px; padding: 7px 9px; margin-bottom: 10px; }
+  .xp-logo img { max-width: 40px; max-height: 40px; }
 }
 
 /* =============================================================
@@ -2855,7 +3093,8 @@ a.product:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
   .products { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .collab { grid-template-columns: 1fr; }
   .collab-photo { max-width: 300px; }
-  .nav-links a { padding: 6px 10px; font-size: 13.5px; }
+  .nav-links a,
+  .nav-links .nav-trigger { padding: 6px 10px; font-size: 13.5px; }
 }
 
 @media (max-width: 760px) {
@@ -2939,7 +3178,8 @@ a.product:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
   .nav-mark    { grid-area: mark; font-size: 14px; }
   .nav-actions { grid-area: actions; justify-self: end; }
   .nav         { grid-area: bar; justify-self: center; }
-  .nav-links a { padding: 6px 12px; font-size: 13.5px; }
+  .nav-links a,
+  .nav-links .nav-trigger { padding: 6px 12px; font-size: 13.5px; }
   .nav-menu    { min-width: 196px; }
 
   .lander { min-height: auto; padding-bottom: 8px; }
