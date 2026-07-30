@@ -2612,8 +2612,8 @@ a.product:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
   position: relative;
   padding: 0 0 30px calc(var(--xp-gutter) + 30px);
   /* The entry sets its own column rather than running the page's full
-     width, so the note keeps a readable measure and the artwork down the
-     right margin has room. The gutter is on top of that measure, not
+     width, so the note keeps a readable measure instead of stretching to
+     whatever the viewport is. The gutter is on top of that measure, not
      taken out of it. */
   max-width: calc(74ch + var(--xp-gutter));
 }
@@ -2712,55 +2712,6 @@ a.product:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
   color: var(--ink-soft);
   max-width: 62ch;
 }
-
-/* The garden, run down the right margin of the timeline.
-
-   It's a tall, narrow, strongly coloured illustration, and the page is
-   meant to stay plain — so it's held right back: a third opacity, half
-   the saturation, and faded to nothing on every edge so it has no border
-   anywhere to read as a photograph. Laid across the page as a banner it
-   was hopeless: cover on a 0.46 aspect inside a 5:1 box crops to a sliver
-   of washed foreground. Stood on end it keeps the flowers, and matches
-   the one shape the page already has.
-
-   The entries stop at 74ch, so this occupies margin that was empty. */
-.xp-section { position: relative; }
-.timeline { z-index: 1; }
-.xp-garden {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  right: 0;
-  z-index: 0;
-  width: clamp(170px, 23vw, 290px);
-  background: url("assets/photos/art-garden.jpg") center top / cover no-repeat;
-  /* Blurred well past legibility on purpose. In focus it read as a
-     photograph someone had dropped on the page — recognisable flowers
-     with recognisable edges, competing with the copy. Out of focus the
-     same picture is just drifts of colour, which is what a background
-     should be. The saturation stays up: colour is the whole point of
-     keeping it, and blur alone is what stops it intruding.
-
-     The blur is inside the mask — filters run before masking — so the
-     softened edges still get cut cleanly rather than smearing. */
-  opacity: 0.5;
-  filter: saturate(0.9) blur(11px);
-  /* Long fades on every side now, so it has no edge anywhere. The
-     horizontal one runs to 62%: the left flank is what sits nearest the
-     text, and that's where it looked pasted on. */
-  -webkit-mask-image:
-    linear-gradient(to bottom, transparent 0%, #000 14%, #000 66%, transparent 100%),
-    linear-gradient(to right, transparent 0%, #000 62%);
-  -webkit-mask-composite: source-in;
-  mask-image:
-    linear-gradient(to bottom, transparent 0%, #000 14%, #000 66%, transparent 100%),
-    linear-gradient(to right, transparent 0%, #000 62%);
-  mask-composite: intersect;
-  pointer-events: none;
-}
-/* below this the entries need the full width and there's no margin left
-   for it to live in */
-@media (max-width: 900px) { .xp-garden { display: none; } }
 
 @media (max-width: 620px) {
   /* A 92px gutter plus the rail leaves the copy about half the screen, so
