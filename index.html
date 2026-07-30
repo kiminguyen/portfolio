@@ -64,9 +64,15 @@
       <span class="nav-pill" aria-hidden="true"></span>
       <ul class="nav-links">
         <li><a href="/" aria-current="page">Home</a></li>
-        <li><a href="/career">Career</a></li>
-        <li><a href="/beauty">Beauty</a></li>
-        <li><a href="/events">Events</a></li>
+        <li class="has-menu">
+          <a href="/career">Content <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></a>
+          <div class="nav-menu">
+            <a href="/career">Career</a>
+            <a href="/beauty">Beauty</a>
+            <a href="/events">Events</a>
+          </div>
+        </li>
+        <li><a href="/experience">Experience</a></li>
       </ul>
     </nav>
 
@@ -98,7 +104,15 @@
       <span class="bubble bubble--sm s7" aria-hidden="true"></span>
     </div>
     <div class="lander-inner wrap">
-      <h1>Hi, I'm <em>Kimi!</em><span>Welcome to my portfolio.</span></h1>
+      <!-- The role types itself out and deletes on a loop (main.js,
+           roles live in content.js). The animated line is hidden from
+           screen readers, which would otherwise be read a half-typed
+           word; the line after it says the same thing, once, in full.
+           With JS off the first role just sits there as plain text. -->
+      <h1>Hi, I'm <em>Kimi!</em><span>
+        <span class="typer" aria-hidden="true">I am <span data-article>a</span> <span class="typer-role" data-role>Content Creator.</span><i class="caret"></i></span>
+        <span class="sr-only" data-role-label>I am a content creator, a marketer, a web designer, an event host, a growth lead and an artist.</span>
+      </span></h1>
       <div class="lander-cta">
         <a class="solid" href="#about">About</a>
         <a class="ghost" href="#contact">Contact</a>

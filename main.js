@@ -176,6 +176,44 @@
     );
   }
 
+  /* ------------------------------------------- the /experience timeline
+     Printed in the order content.js lists them — no sorting here, so the
+     file stays the single place the order is decided.
+
+     One <li> per role. The rail and the dots are drawn in CSS off the
+     list itself, so nothing here has to know it's the first or last
+     item. `to: "Present"` is the only marker of a current role. */
+  function renderExperience() {
+    var host = document.getElementById("experience");
+    if (!host || !DATA.experience) return;
+
+    host.innerHTML = DATA.experience.map(function (e) {
+      var current = /present|now/i.test(e.to || "");
+      return (
+        '<li class="xp' + (current ? " is-current" : "") + '">' +
+          '<div class="xp-when">' +
+            esc(e.from || "") +
+            (e.to ? ' <span aria-hidden="true">–</span> ' + esc(e.to) : "") +
+          "</div>" +
+          '<div class="xp-body">' +
+            /* An entry with no logo on file simply doesn't get one — the
+               org name is already right there in the line below, so there
+               is nothing to fall back to and nothing missing. */
+            (e.logo
+              ? '<span class="xp-logo"><img src="' + esc(e.logo) + '" alt="" loading="lazy"' +
+                  ' onerror="this.closest(\'.xp-logo\').remove()"></span>'
+              : "") +
+            '<h3 class="xp-role">' + esc(e.role || "") + "</h3>" +
+            '<p class="xp-org">' + esc(e.org || "") +
+              (e.where ? ' <span class="xp-where">' + esc(e.where) + "</span>" : "") +
+            "</p>" +
+            (e.note ? '<p class="xp-note">' + esc(e.note) + "</p>" : "") +
+          "</div>" +
+        "</li>"
+      );
+    }).join("");
+  }
+
   /* --------------------------------------------- events I've been to
      Same tiles as the brand wall, separate list — see the note in
      content.js for why these aren't a brandGroup. */
@@ -508,14 +546,26 @@
     var pill = nav && nav.querySelector(".nav-pill");
     if (!nav || !pill) return;
 
-    var links = [].slice.call(nav.querySelectorAll(".nav-links a"));
+    /* top level only — hovering a link inside the open flyout shouldn't
+       send the pill down there after it */
+    var links = [].slice.call(nav.querySelectorAll(".nav-links > li > a"));
     if (!links.length) return;
 
     /* Looked up each time rather than captured once: the router moves
        aria-current when it swaps a page in, and the pill has to rest on
        whichever link is current now, not the one that was current when
-       this ran. */
-    function home() { return nav.querySelector('.nav-links a[aria-current="page"]'); }
+       this ran.
+
+       Career, Beauty and Events live inside the Content flyout, which is
+       closed most of the time. The pill can't rest on a link nobody can
+       see, so a current page inside a menu hands the pill to the item
+       that opens it. */
+    function home() {
+      var current = nav.querySelector('.nav-links a[aria-current="page"]');
+      if (!current) return null;
+      var group = current.closest(".has-menu");
+      return group ? group.querySelector("a") : current;
+    }
     var at = null;
 
     /* measured from rects, not offsetLeft: .nav-links carries a z-index,
@@ -817,6 +867,108 @@
     });
   }
 
+  /* --------------------------------------- the role that types itself
+     "I am a Content Creator" — the role types in, holds, backs out a
+     letter at a time, and the next one takes its place. Roles come from
+     content.js.
+
+     One timer at a time, held in `timer` and cleared on unmount: the
+     router lifts this whole hero out when you leave the home page, and
+     a loop left running would carry on typing into a node that isn't in
+     the document any more, forever, and start a second one on the way
+     back. */
+  function initTyper() {
+    var host = document.querySelector("[data-role]");
+    if (!host) return;
+
+    /* a bare string is allowed too, and just means the ordinary rate */
+    var roles = (DATA.roles || []).map(function (r) {
+      if (typeof r === "string") return { name: r, weight: 1 };
+      return { name: r && r.name, weight: r && r.weight > 0 ? r.weight : 1 };
+    }).filter(function (r) { return r.name; });
+    if (!roles.length) return;
+
+    var article = document.querySelector("[data-article]");
+    /* first letter is enough for this list; see the note in content.js
+       about words that are spelled with a vowel but said without one */
+    function articleFor(w) { return /^[aeiou]/i.test(w) ? "an" : "a"; }
+
+    /* the full stop belongs to the line, not to the role, so it lives
+       here rather than in content.js — one place to change it, and the
+       article logic still sees a clean word */
+    function line(word) { return word + "."; }
+
+    function show(word) {
+      if (article) article.textContent = articleFor(word);
+      host.textContent = line(word);
+    }
+
+    /* every role, stated plainly and once, for anyone reading the page
+       aloud — the visible line is aria-hidden because a reader landing
+       on it mid-word would announce half a word */
+    var label = document.querySelector("[data-role-label]");
+    if (label) {
+      label.textContent = "I am " + roles.map(function (r) {
+        return articleFor(r.name) + " " + r.name.toLowerCase();
+      }).join(", ") + ".";
+    }
+
+    /* Weighted draw, with the role just shown taken out of the pool so
+       it can't come up twice running — at weight 3 against a field of
+       1s, Content Creator would otherwise repeat itself fairly often
+       and read as a stall rather than a choice. */
+    function pick(previous) {
+      var pool = roles.filter(function (r) { return r.name !== previous; });
+      if (!pool.length) pool = roles;
+      var total = pool.reduce(function (n, r) { return n + r.weight; }, 0);
+      var n = Math.random() * total;
+      for (var i = 0; i < pool.length; i++) {
+        n -= pool[i].weight;
+        if (n <= 0) return pool[i].name;
+      }
+      return pool[pool.length - 1].name;
+    }
+
+    var current = pick(null);
+
+    if (roles.length < 2 || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      show(current);
+      return;
+    }
+
+    /* deleting runs about twice as quick as typing — that's the rhythm
+       the effect is imitating, and a slow delete reads as a mistake */
+    var TYPE = 70, ERASE = 34, HOLD = 1600, BETWEEN = 340, FIRST = 500;
+    var timer = null;
+    function at(fn, ms) { timer = setTimeout(fn, ms); }
+
+    function typeIn() {
+      var text = line(current), n = 0;
+      if (article) article.textContent = articleFor(current);
+      (function step() {
+        host.textContent = text.slice(0, ++n);
+        at(n < text.length ? step : eraseOut, n < text.length ? TYPE : HOLD);
+      })();
+    }
+
+    function eraseOut() {
+      var text = line(current), n = text.length;
+      (function step() {
+        host.textContent = text.slice(0, --n);
+        if (n > 0) return at(step, ERASE);
+        current = pick(current);
+        at(typeIn, BETWEEN);
+      })();
+    }
+
+    /* drawn and shown before the first paint, so the line is already
+       whole rather than assembling itself the moment the page opens */
+    show(current);
+    at(eraseOut, FIRST + HOLD);
+
+    onUnmount(function () { clearTimeout(timer); });
+  }
+
   /* ------------------------------------ in-page jumps, minus the hash
      About, Collab and the brands tile all point at sections on this same
      page. Left to the browser those scroll AND stamp #about on the URL,
@@ -935,6 +1087,7 @@
     renderVideos();
     renderProducts();
     renderBrands();
+    renderExperience();
     renderEventOrgs();
     renderQuotes();
     renderQuotePair();
@@ -943,6 +1096,7 @@
     initNav();
     initBubbles();
     initPortraitBurst();
+    initTyper();
     initQuietAnchors();
     fillCounts();
     initReveal();

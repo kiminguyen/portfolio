@@ -615,7 +615,10 @@ h1, h2, h3, h4 {
 .nav-links a[aria-current="page"] { font-weight: 700; }
 .nav-links svg { width: 11px; height: 11px; transition: transform 0.25s var(--ease); }
 
-/* flyout on hover, and on keyboard focus via :focus-within — no JS */
+/* flyout on hover, and on keyboard focus via :focus-within — no JS.
+   The li is the positioning context, so the panel hangs off the Content
+   item rather than off the middle of the whole bar. */
+.has-menu { position: relative; }
 .nav-menu {
   position: absolute;
   top: calc(100% + 12px);
@@ -645,8 +648,22 @@ h1, h2, h3, h4 {
   pointer-events: auto;
   transform: translateX(-50%) translateY(0);
 }
-.has-menu:hover .nav-links svg,
-.has-menu:focus-within .nav-links svg { transform: rotate(180deg); }
+/* `> a svg`, not `.nav-links svg`: .nav-links is the ancestor of the li
+   now, not a descendant, so the old selector matched nothing */
+.has-menu:hover > a svg,
+.has-menu:focus-within > a svg { transform: rotate(180deg); }
+/* the chevron rides with the label rather than sitting on the baseline */
+.has-menu > a { display: inline-flex; align-items: center; gap: 5px; }
+/* Hover has to survive the 12px of air between the item and the panel,
+   or the menu closes as the pointer travels down to it. */
+.nav-menu::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -14px;
+  height: 14px;
+}
 .nav-menu a { padding: 9px 13px; border-radius: 10px; font-weight: 500; }
 .nav-menu a:hover { background: rgba(255, 255, 255, 0.22); opacity: 1; }
 
@@ -953,16 +970,61 @@ h1, h2, h3, h4 {
   font-size: clamp(30px, 3.9vw, 50px);
   line-height: 1.08;
   letter-spacing: -0.024em;
-  /* holds the longest line, "Welcome to my portfolio.", on one line while
-     keeping the text clear of the portrait orbit on the right */
+  /* holds the longest role line, "I am a Content Creator", on one line
+     while keeping the text clear of the portrait orbit on the right */
   max-width: 31ch;
   color: #fff;
 }
-.lander h1 span {
+/* direct child only: the role line nests spans of its own, and they have
+   to stay inline or every word would land on a line of its own */
+.lander h1 > span {
   display: block;
   color: rgba(255, 255, 255, 0.64);   /* 0.55 measured 2.86:1, under the 3:1 bar */
+  /* the role changes width as it types, and a shorter one must not let
+     the line reflow and jog the buttons underneath */
+  min-height: 1.08em;
 }
 .lander h1 em { font-style: normal; color: #fff; }
+
+/* the word being typed sits in the brighter ink, so it reads as the
+   thing that's changing rather than part of the sentence around it */
+.lander h1 .typer-role { color: rgba(255, 255, 255, 0.92); }
+
+/* Steps(1), not a fade: a caret blinks, it doesn't dissolve. It keeps
+   its width while empty so the text never shifts a pixel as it winks. */
+.lander h1 .caret {
+  display: inline-block;
+  width: 2px;
+  height: 0.92em;
+  margin-left: 3px;
+  vertical-align: -0.11em;
+  background: rgba(255, 255, 255, 0.92);
+  animation: caret 1.05s steps(1) infinite;
+}
+@keyframes caret {
+  0%, 48%   { opacity: 1; }
+  50%, 98%  { opacity: 0; }
+  100%      { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* main.js leaves the first role sitting there rather than typing, so
+     a blinking caret would be pointing at nothing happening */
+  .lander h1 .caret { display: none; }
+}
+
+/* Off-screen but still read aloud. Not display:none, which would take it
+   out of the accessibility tree along with everything else. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
 
 .lander-cta { display: flex; gap: 10px; flex-wrap: wrap; }
 .lander-cta a {
@@ -1656,6 +1718,22 @@ a.b:hover .mini img:nth-child(3) { transform: rotate(11deg) translateY(-4px); }
   background-position: center, 50% 60%, center;
 }
 
+/* The watermelon, cropped low so the banner sits on the pale flesh rather
+   than the seeds up top. Measured the same way as the three above: 5th
+   percentile of the blurred artwork under the text column is rgb(252,159,145),
+   and 0.16 puts --ink-soft on it at 4.60:1. It needs far less veil than the
+   others because that part of the crop is already near-white. */
+.art-head--experience {
+  background-image:
+    linear-gradient(90deg,
+      rgba(255, 255, 255, 0.16) 0%,
+      rgba(255, 255, 255, 0.16) 64%,
+      rgba(255, 255, 255, 0.08) 100%),
+    url("assets/photos/art-watermelon.jpg"),
+    linear-gradient(rgba(241, 241, 244, 0.72), rgba(241, 241, 244, 0.72));
+  background-position: center, 50% 70%, center;
+}
+
 /* The 64% breakpoint only holds while the card is wide. As it narrows the
    copy keeps its 48ch measure and so occupies more of the width — past
    the ramp — so below this the veil goes flat at full strength. */
@@ -1672,7 +1750,34 @@ a.b:hover .mini img:nth-child(3) { transform: rotate(11deg) translateY(-4px); }
     linear-gradient(rgba(255,255,255,0.3), rgba(255,255,255,0.3)),
     url("assets/photos/art-blue.jpg"),
     linear-gradient(rgba(241,241,244,0.72), rgba(241,241,244,0.72)); }
+  /* full width now, so this is measured across the whole band: 0.16
+     holds at 4.59:1 there too */
+  .art-head--experience { background-image:
+    linear-gradient(rgba(255,255,255,0.16), rgba(255,255,255,0.16)),
+    url("assets/photos/art-watermelon.jpg"),
+    linear-gradient(rgba(241,241,244,0.72), rgba(241,241,244,0.72)); }
 }
+
+/* The CV header: no photo, no glass, no card. Everything the panel was
+   doing — the blur, the rim, the shadow, the inset — exists to lift the
+   header off a picture, and there's no picture here. Left in place it
+   would read as an empty frame. What's left is type on the page, which
+   is what a CV wants. */
+.page-head--plain {
+  border-radius: 0;
+  padding: 0;
+  margin-block: 30px 30px;
+  overflow: visible;
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 0;
+  box-shadow: none;
+}
+/* the head row loses the card's padding, so it needs its own breathing
+   room under it before the headline */
+.page-head--plain .head-top { margin-bottom: 22px; }
+.page-head--plain > p:last-child { color: var(--ink-soft); }
 
 .page-head h1 {
   font-size: clamp(34px, 5.4vw, 58px);
@@ -2474,6 +2579,202 @@ a.product:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 .collab .socials a:hover { background: #fff; color: var(--hover); }
 
 /* =============================================================
+   Experience timeline
+   ============================================================= */
+/* One rail down the left, one dot per role. The rail is a ::before on
+   the list rather than a border on each row, so it can stop short at the
+   bottom — a border would run past the last dot to the end of the item
+   and leave a stub hanging below it. */
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+  /* A gutter to the left of the rail, for the org marks. Everything that
+     follows — rail, dot, text — is offset by it, so the marks get a
+     column of their own outside the line rather than sitting in among
+     the copy. One value moves the lot. */
+  --xp-gutter: 92px;
+}
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--xp-gutter) + 5px);
+  top: 8px;
+  /* stops at the last dot instead of the list's full height */
+  bottom: 20px;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(rgba(35, 37, 43, 0.16), rgba(35, 37, 43, 0.05));
+}
+
+.xp {
+  position: relative;
+  padding: 0 0 30px calc(var(--xp-gutter) + 30px);
+  /* The entry sets its own column rather than running the page's full
+     width, so the note keeps a readable measure and the artwork down the
+     right margin has room. The gutter is on top of that measure, not
+     taken out of it. */
+  max-width: calc(74ch + var(--xp-gutter));
+}
+.xp:last-child { padding-bottom: 0; }
+/* the dot. Ring by default, filled for a current role — see .is-current */
+.xp::before {
+  content: "";
+  position: absolute;
+  left: var(--xp-gutter);
+  top: 7px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--paper, #fff);
+  border: 2px solid rgba(35, 37, 43, 0.28);
+}
+.xp.is-current::before {
+  background: var(--hover);
+  border-color: var(--hover);
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.05);
+}
+
+.xp-when {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+/* The org's mark, set to the left of the entry with the text running
+   alongside. A logo tile rather than a bare image: these come in every
+   shape and background — a purple square, a red roundel, a white-ground
+   JPG — and only a common frame stops the column reading as a jumble.
+   contain, so nothing is ever cropped, and full colour: these are the
+   marks of real places and they should look like themselves. */
+.xp-logo {
+  /* Out of the flow entirely and parked in the gutter, so the copy keeps
+     a straight left edge instead of wrapping around the mark. Right-
+     aligned in its column: the marks then line up against the rail
+     rather than raggedly against the page edge. */
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: auto;
+  /* Height is fixed and width follows the mark, so a wordmark can grow
+     sideways rather than being squashed to a hairline inside a square. */
+  height: 68px;
+  width: auto;
+  min-width: 68px;
+  max-width: calc(var(--xp-gutter) - 18px);
+  margin: 0;
+  display: grid;
+  place-items: center;
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: var(--shadow-xs);
+}
+/* Absolute caps, not 100%: as a grid item the percentage resolved
+   against an auto track rather than the tile's height, and the square
+   marks burst straight out of the tile. 50 = the tile's 68 less its 9px
+   of padding top and bottom. */
+.xp-logo img {
+  max-width: 50px;
+  max-height: 50px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.xp-role {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.xp-org {
+  margin: 3px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+/* the place, quieter than the org and on the same line until it can't be */
+.xp-where {
+  font-weight: 400;
+  color: var(--muted);
+}
+.xp-where::before { content: "· "; }
+.xp-note {
+  margin: 7px 0 0;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  max-width: 62ch;
+}
+
+/* The garden, run down the right margin of the timeline.
+
+   It's a tall, narrow, strongly coloured illustration, and the page is
+   meant to stay plain — so it's held right back: a third opacity, half
+   the saturation, and faded to nothing on every edge so it has no border
+   anywhere to read as a photograph. Laid across the page as a banner it
+   was hopeless: cover on a 0.46 aspect inside a 5:1 box crops to a sliver
+   of washed foreground. Stood on end it keeps the flowers, and matches
+   the one shape the page already has.
+
+   The entries stop at 74ch, so this occupies margin that was empty. */
+.xp-section { position: relative; }
+.timeline { z-index: 1; }
+.xp-garden {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  z-index: 0;
+  width: clamp(170px, 23vw, 290px);
+  background: url("assets/photos/art-garden.jpg") center top / cover no-repeat;
+  /* Blurred well past legibility on purpose. In focus it read as a
+     photograph someone had dropped on the page — recognisable flowers
+     with recognisable edges, competing with the copy. Out of focus the
+     same picture is just drifts of colour, which is what a background
+     should be. The saturation stays up: colour is the whole point of
+     keeping it, and blur alone is what stops it intruding.
+
+     The blur is inside the mask — filters run before masking — so the
+     softened edges still get cut cleanly rather than smearing. */
+  opacity: 0.5;
+  filter: saturate(0.9) blur(11px);
+  /* Long fades on every side now, so it has no edge anywhere. The
+     horizontal one runs to 62%: the left flank is what sits nearest the
+     text, and that's where it looked pasted on. */
+  -webkit-mask-image:
+    linear-gradient(to bottom, transparent 0%, #000 14%, #000 66%, transparent 100%),
+    linear-gradient(to right, transparent 0%, #000 62%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to bottom, transparent 0%, #000 14%, #000 66%, transparent 100%),
+    linear-gradient(to right, transparent 0%, #000 62%);
+  mask-composite: intersect;
+  pointer-events: none;
+}
+/* below this the entries need the full width and there's no margin left
+   for it to live in */
+@media (max-width: 900px) { .xp-garden { display: none; } }
+
+@media (max-width: 620px) {
+  /* A 92px gutter plus the rail leaves the copy about half the screen, so
+     the marks come down to a size that still reads and the gutter shrinks
+     with them. */
+  .timeline { --xp-gutter: 56px; }
+  .xp { padding-left: calc(var(--xp-gutter) + 24px); padding-bottom: 26px; }
+  .xp-logo { height: 48px; min-width: 48px; padding: 6px 7px; }
+  .xp-logo img { max-width: 34px; max-height: 34px; }
+  .xp-where { display: block; }
+  .xp-where::before { content: ""; }
+}
+
+/* =============================================================
    Footer
    ============================================================= */
 /* Back to top — one of the footer's own row items, so it sits on the
@@ -2593,7 +2894,12 @@ a.product:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
   .lander-orbit { width: clamp(170px, 24vw, 240px); }
   .b--hero { padding-right: 224px; }
   .b--hero h2 { font-size: clamp(28px, 4.2vw, 36px); }
-  .panel--menu { width: 182px; top: 22px; right: 22px; }
+  /* transform:none belongs with the top change, not after it. The base
+     rule centres the panel with top:50% AND translateY(-50%); re-anchoring
+     to a fixed top:22px without dropping the transform still shifted it up
+     by half its own height, which put it ~100px above the card — and the
+     card clips, so the first menu row was cut off. */
+  .panel--menu { width: 182px; top: 22px; right: 22px; transform: none; }
   .videos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .products { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .collab { grid-template-columns: 1fr; }

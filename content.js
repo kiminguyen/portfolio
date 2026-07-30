@@ -4,6 +4,44 @@
    ============================================================ */
 
 window.SITE = {
+  /* ---------- Roles -----------------------------------------------
+     The line under the greeting on the home page. Each one types
+     itself out, holds a beat, deletes, and the next one takes over.
+
+     The next one is picked at random rather than taken in order, so
+     the line doesn't run to a script anyone can follow. `weight` is
+     how often a role comes up against the others: at 3 against 1,
+     Content Creator turns up three times as often as Artist. Leave
+     `weight` off for the ordinary rate of 1. The same role is never
+     picked twice running, whatever its weight.
+
+     Add, remove or reorder freely — order here doesn't decide
+     anything any more, it's just the pool. A plain string works too
+     if you don't care about the rate.
+
+     The "a" / "an" in front is picked per role from its first letter,
+     so "an Artist" comes out right with nothing extra here. A role
+     spelled with a vowel but said with a consonant — "a UX Designer"
+     — is the one case that would need a hand.
+
+     The full stop at the end is added by main.js, so don't type one
+     here or the line will end with two.
+
+     Keep them short: they share a line with "I am a", and the line is
+     meant to hold without wrapping.
+  ------------------------------------------------------------------ */
+  roles: [
+    { name: "Content Creator", weight: 3 },
+    { name: "Marketer",        weight: 3 },
+    { name: "Web Designer" },
+    { name: "Event Host" },
+    { name: "Growth Lead" },
+    { name: "Artist" },
+    { name: "LinkedIn Warrior" },
+    { name: "Game Caster" },
+    { name: "Fellow" },
+  ],
+
   /* ---------- Stats -----------------------------------------------
      These are typed in by hand on purpose. Neither TikTok nor
      LinkedIn exposes these numbers to a website — see README
@@ -380,6 +418,67 @@ window.SITE = {
     { name: "Akatos",            logo: "assets/brands/akatos.png",        url: "https://www.akatos.house/" },
     { name: "Sip & Scale",       logo: "assets/brands/sip-and-scale.svg", url: "https://sipnscale.com/" },
     { name: "Playa Bowls",       logo: "assets/brands/playa-bowls.svg",   url: "https://www.playabowls.com/" },
+  ],
+
+  /* ---------- Experience -----------------------------------------
+     The timeline on /experience, newest first. The page prints this in
+     order — it does no sorting — so a new role goes at the TOP.
+
+     `from`/`to` are plain strings, not dates, so they read the way you'd
+     say them. `to: "Present"` also draws the dot filled in, which is the
+     only thing that marks a role as current.
+
+     Ordered by when each role STARTED, which is why Karla sits above
+     Wealthsimple even though Wealthsimple ran later — reorder freely if
+     you'd rather group them another way.
+
+     `note` is one line. Two sentences and the timeline stops scanning
+     as a timeline.
+  ------------------------------------------------------------------ */
+  experience: [
+    {
+      org: "Girls Who Lead",
+      logo: "assets/brands/girls-who-lead.png",
+      role: "Marketing and Content Lead",
+      from: "Sept 2025",
+      to: "Present",
+      where: "Student-led non-profit · Canada & USA",
+      note: "Led content and social strategy across two countries, sourcing creators and growing post viewership 200%.",
+    },
+    {
+      org: "Karla Technologies",
+      role: "Digital Marketing Intern",
+      from: "May 2025",
+      to: "Aug 2025",
+      where: "Toronto, ON",
+      note: "Ran end-to-end campaigns across Instagram, TikTok and YouTube, and designed the app and landing page mockups.",
+    },
+    {
+      org: "Wealthsimple Foundation",
+      logo: "assets/brands/wealthsimple.jpg",
+      role: "Content Creator and Ambassador",
+      from: "Mar 2025",
+      to: "Jan 2026",
+      where: "Toronto, ON",
+      note: "Turned complex financial ideas into short-form content — 3M+ views and 400K+ likes — and repped the Foundation on campus.",
+    },
+    {
+      org: "Scotiabank",
+      logo: "assets/brands/scotiabank.svg",
+      role: "Change Management and Communications Intern",
+      from: "Jan 2025",
+      to: "Apr 2025",
+      where: "Toronto, ON",
+      note: "Wrote internal comms on SharePoint and co-designed an AI chatbot prototype in Figma, presented to senior stakeholders.",
+    },
+    {
+      org: "FinTech Association",
+      role: "President, Founder, ex VP of Marketing",
+      from: "Apr 2023",
+      to: "Apr 2026",
+      where: "University of Toronto Mississauga",
+      note: "Founded UTM's largest FinTech community at 150+ members, and ran sponsorship outreach with RBC, TD, IBM and Shopify.",
+    },
   ],
 
   /* The tools list on /built is NOT here — it's written straight into
