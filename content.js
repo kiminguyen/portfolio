@@ -188,7 +188,7 @@ window.SITE = {
           title: "try these at ur next hackathon?",
           url: "https://www.instagram.com/reel/DbJj40mI2xE/",
           thumb: "assets/tiktok/events-hackathon.jpg",
-          views: "1.1M",
+          views: "1.2M",
           platform: "instagram",
           tag: "Cursor",
         },
