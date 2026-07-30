@@ -671,13 +671,22 @@ h1, h2, h3, h4 {
 /* the chevron rides with the label rather than sitting on the baseline */
 /* A <button> brings its own font, background, border and alignment; none
    of that is inherited, so it has to be cleared before the shared
-   .nav-links rules can make it look like its neighbours. */
+   .nav-links rules can make it look like its neighbours.
+
+   Family and line-height only — not the `font` shorthand. `font: inherit`
+   also expands to font-size and font-weight, and this rule matches the
+   trigger at the same specificity as the shared block above while sitting
+   later in the file, so it won: "Content" took the body's 16px/400 next to
+   14.5px/500 on either side, reading a size larger than its neighbours.
+   Below 1000px a media query re-states font-size and hid half of it, which
+   is why the gap only showed on wide screens. */
 .nav-links .nav-trigger {
   appearance: none;
   -webkit-appearance: none;
   background: none;
   border: 0;
-  font: inherit;
+  font-family: inherit;
+  line-height: inherit;
   cursor: pointer;
 }
 /* The chevron closes up to its label, and the trailing padding comes in.
