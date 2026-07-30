@@ -654,13 +654,41 @@
 
       function set(open) {
         group.classList.toggle("is-open", open);
+        /* The counterpart to is-open, and the reason a second click shuts
+           the panel: CSS opens the menu on :hover and :focus-within too,
+           and both are still true the instant a click closes it, so
+           without this the panel stayed up and the click did nothing. */
+        group.classList.toggle("is-shut", !open);
         trigger.setAttribute("aria-expanded", open ? "true" : "false");
       }
 
+      /* Let go of the suppression as soon as the pointer or focus next
+         arrives, so hover and tabbing open the menu the ordinary way.
+         Both events fire ahead of the click that would close it — enter
+         then click, focus then click — so neither can undo a close that
+         is still on its way. */
+      function release() { group.classList.remove("is-shut"); }
+      group.addEventListener("mouseenter", release);
+      group.addEventListener("focusin", release);
+
+      /* Toggle what is on screen rather than what is in the class list.
+         On a mouse :hover has already opened the panel by the time the
+         click arrives, so reading is-open alone made the first click a
+         no-op and took two to shut it.
+
+         The hover query keeps touch out of that branch: a tap synthesises
+         mouseenter ahead of click, and counting it would read the panel as
+         open and close it again on the way up. */
       trigger.addEventListener("click", function (e) {
         e.preventDefault();
         e.stopPropagation();
-        set(!group.classList.contains("is-open"));
+        var canHover = matchMedia("(hover: hover) and (pointer: fine)").matches;
+        var shown =
+          group.classList.contains("is-open") ||
+          (canHover &&
+            !group.classList.contains("is-shut") &&
+            group.matches(":hover, :focus-within"));
+        set(!shown);
       });
 
       /* picking a destination — let the click through, just drop the

@@ -668,6 +668,24 @@ h1, h2, h3, h4 {
 .has-menu:hover > .nav-trigger svg,
 .has-menu:focus-within > .nav-trigger svg,
 .has-menu.is-open > .nav-trigger svg { transform: rotate(180deg); }
+
+/* The click that closes the flyout has to out-rank the two rules above.
+   At the moment it lands the pointer is still on the item and the button
+   has just taken focus, so :hover and :focus-within both match and held
+   the panel open on their own — dropping .is-open closed nothing and the
+   second click read as dead. Same specificity as the open rules, so these
+   win on source order alone; keep them below.
+
+   main.js takes the class back off when the pointer next arrives or focus
+   next lands, so this suppresses one deliberate close rather than turning
+   hover-to-open off. */
+.has-menu.is-shut .nav-menu {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(-6px);
+}
+.has-menu.is-shut > .nav-trigger svg { transform: none; }
 /* the chevron rides with the label rather than sitting on the baseline */
 /* A <button> brings its own font, background, border and alignment; none
    of that is inherited, so it has to be cleared before the shared
@@ -2272,6 +2290,24 @@ a.product:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
   color: var(--ink-soft);
 }
 .plain-intro + .plain-intro { margin-top: 14px; }
+/* Links inside the body copy — webring.ca and Stanley Pang. The global
+   `a` rule strips colour and underline, which left these setting exactly
+   like the text around them: nothing to tell you they could be clicked.
+   The underline arrives on hover, offset off the baseline so it clears
+   the descenders in "Pang" rather than striking through them.
+
+   :focus-visible gets the same treatment, so tabbing to one shows what
+   hovering it would. */
+.plain-intro a {
+  transition: color 0.2s var(--ease);
+}
+.plain-intro a:hover,
+.plain-intro a:focus-visible {
+  color: var(--hover);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
 
 /* ---- the cat, top right of /built ------------------------------------
    Anchored to the page column rather than the viewport so it tracks the
@@ -2396,10 +2432,24 @@ a.product:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
   letter-spacing: -0.02em;
   color: var(--ink);
 }
+/* The line under the number: what the figure actually counts, so it
+   takes the weight and the darker ink. */
 .build-stat-l {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink);
+}
+/* The aside under it. Kept at the label's old size and colour, so the
+   two lines read as a heading and its footnote rather than as two
+   competing labels. Its own margin, not the tile's gap, because the gap
+   also sets the space under the number and that one wants to stay tight. */
+.build-stat-d {
+  margin-top: 2px;
   font-size: 12.5px;
   font-weight: 400;
-  color: var(--ink-soft);
+  line-height: 1.35;
+  color: var(--muted);
 }
 /* Narrow: hold the row of three and let the tiles tighten. The longest
    label wraps to two lines here, so the tiles are stretched to match
@@ -2407,7 +2457,8 @@ a.product:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 @media (max-width: 540px) {
   .build-stats { gap: 8px; }
   .build-stat { padding: 14px 13px; }
-  .build-stat-l { font-size: 11.5px; line-height: 1.3; }
+  .build-stat-l { font-size: 12.5px; line-height: 1.3; }
+  .build-stat-d { font-size: 11px; line-height: 1.3; }
 }
 
 /* Tool rows: mark, name, what it did. Three columns on a wide screen so
